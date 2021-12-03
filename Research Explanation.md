@@ -4,8 +4,6 @@
 
 2. https://github.com/hongleizhang/RSPapers
 
-   
-
    https://arxiv.org/pdf/2010.01264.pdf
 
    
@@ -37,9 +35,9 @@ Assisted 算法 (简化版):
 
 问题:
 
-1. nmf, gmf 是什么
-
+1. nmf, gmf 是什么 (nmf是ncf, gmf没效果)
 2. objective (loss function), metric (accuracy)
+2. fmin在更新什么？怎么更新的？(backpropagation更新模型)
 
 
 
@@ -52,16 +50,6 @@ Assisted 算法 (简化版):
 
 
 
-Command:
-
-1. python train_recsys_joint.py --control_name ML100K_user_implicit_ae_random-2_constant-0.1_constant
-
-
-
-config.py => utils.py (process_control)
-
-
-
 Difference:
 
 Federated: sharding, horizontal split
@@ -69,14 +57,6 @@ Federated: sharding, horizontal split
 Assisted: vertical split
 
 
-
-fmin在更新什么？怎么更新的？
-
-
-
-Command 经过流程
-
-Data loading:
 
 
 

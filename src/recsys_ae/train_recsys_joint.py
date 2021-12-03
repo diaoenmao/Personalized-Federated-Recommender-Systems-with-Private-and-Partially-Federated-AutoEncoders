@@ -39,9 +39,13 @@ def runExperiment():
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
     dataset = fetch_dataset(cfg['data_name'])
+    print("zzzzzzzzzz")
     process_dataset(dataset)
     data_loader = make_data_loader(dataset, cfg['model_name'])
+    # what is model?
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    print("model", model)
+    return
     if cfg['model_name'] != 'base':
         optimizer = make_optimizer(model, cfg['model_name'])
         scheduler = make_scheduler(optimizer, cfg['model_name'])

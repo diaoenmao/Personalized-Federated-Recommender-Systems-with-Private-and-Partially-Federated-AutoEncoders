@@ -14,15 +14,19 @@ class ML100K(Dataset):
     file = [('https://files.grouplens.org/datasets/movielens/ml-100k.zip', '0e33842e24a9c977be4e0107933c0723')]
 
     def __init__(self, root, split, data_mode, target_mode, transform=None):
+        print("---------------zzzz")
         self.root = os.path.expanduser(root)
+        print("self.root", self.root)
         self.split = split
         self.data_mode = data_mode
         self.target_mode = target_mode
         self.transform = transform
         if not check_exists(self.processed_folder):
             self.process()
+        print("5555")
         self.data, self.target = load(os.path.join(self.processed_folder, self.target_mode, '{}.pt'.format(self.split)),
                                       mode='pickle')
+        print("6666")
         if self.data_mode == 'user':
             pass
         elif self.data_mode == 'item':

@@ -19,6 +19,11 @@ def fetch_dataset(data_name, model_name=None, verbose=True):
         print('fetching data {}...'.format(data_name))
     root = './data/{}'.format(data_name)
     if data_name in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'NFP']:
+        # a = 'datasets.ML100K(root=root, split=\'train\', 
+        # data_mode=cfg["data_mode"], target_mode=cfg["target_mode"])'
+        a = ('datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
+            'target_mode=cfg["target_mode"])'.format(data_name))
+
         dataset['train'] = eval(
             'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
             'target_mode=cfg["target_mode"])'.format(data_name))
@@ -49,6 +54,7 @@ def make_pair_transform(dataset):
 
 def make_flat_transform(dataset):
     import datasets
+    print("wowowo")
     if 'train' in dataset:
         dataset['train'].transform = datasets.Compose(
             [FlatInput(cfg['data_mode'], cfg['info'], dataset['train'].num_users, dataset['train'].num_items)])
