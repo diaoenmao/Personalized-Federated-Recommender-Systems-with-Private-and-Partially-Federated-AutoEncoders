@@ -121,6 +121,20 @@ def process_dataset(dataset):
 
 
 def process_control():
+    
+    """
+    Handle the model parameters and disassemble cfg['control']
+
+    Parameters:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
+
     cfg['data_name'] = cfg['control']['data_name']
     cfg['data_mode'] = cfg['control']['data_mode']
     cfg['target_mode'] = cfg['control']['target_mode']

@@ -1,22 +1,36 @@
-Command:
+**Privacy-Preserving Multi-Target Multi-Domain Recommender Systems with Assisted AutoEncoders:**
 
-cuda => cpu if dont have gpu
 
-1. Example
 
-   1. python train_recsys_joint.py --control_name ML100K_user_implicit_ae_random-2_constant-0.1_constant
+**Detailed Work Flow:**
 
-2. Process:
+Take **train_recsys_joint.py** as example
 
-   1. config.py / process_args
+1. Command:
+   1. python train_recsys_joint.py --control_name ML100K_user_implicit_ae_1_random-2_constant-0.1_constant_1 --num_workers 0 --init_seed 0 --num_experiments 1 --log_interval 0.25 --device cpu --world_size 1 --resume_mode 0 --verbose False
+   2. 修改device: cuda 为 device: cpu, 如果没有gpu
+2. 创建解析器
+   1. 创建
+   2. **add_argument()** 加入参数，parser的值为yaml中的值。
+   3. args = vars() 返回对象object的属性和属性值的字典对象, args此时为字典, args的值都用户输入的值，除了args['control']为yaml值。
+   4. 传入process_args(args)处理, 更新cfg
 
-      1. 处理args，转为字典结构
+3. Main():
 
-   2. utils.py / process_control
+   1. Utils.py / process_control()
+      1. 处理模型参数
+      2. 拆除cfg['control']
+   2. 加上Init_seen, 跑num_experiments次runExperiment()
 
-      1. 拆分cfg，赋予模型参数
+4. runExperiment():
 
-         
+   1. 
+
+   
+
+
+
+
 
 Train:
 
@@ -30,16 +44,11 @@ Test:
 
 
 
-Whole Flow ():
+Technology Issue:
 
-1. 处理command (参照above command)
-2. train_recsys_joint.py / runExperiment() (train_recsys_joint.py as example)
-3. Init dataset
-   1. Data.py / fetch_dataset()
-      1. 初始化datasets中的class (eval()执行string, 完成初始化)
-      2. 
+exec: 内置语句，执行储存在字符串或文件中的Python语句
 
-fetch_dataset => import datasets => init ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'NFP'] if not exists => 
+Vars: 内置函数，返回对象object的属性和属性值的字典对象，如果没有参数，就打印当前调用位置的属性和属性值 类似 locals()。
 
 
 
@@ -62,4 +71,14 @@ Data loading:
 
 
 
+
+
+
+
+
+
+
+
+
+HeteroFL-Computation-and-Communication-Efficient-Federated-Learning-for-Heterogeneous-Clients:
 
