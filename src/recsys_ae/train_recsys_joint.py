@@ -20,7 +20,6 @@ parser = argparse.ArgumentParser(description='cfg')
 for k in cfg:
     exec('parser.add_argument(\'--{0}\', default=cfg[\'{0}\'], type=type(cfg[\'{0}\']))'.format(k))
 parser.add_argument('--control_name', default=None, type=str)
-a = parser.parse_args()
 args = vars(parser.parse_args())
 process_args(args)
 
@@ -39,16 +38,19 @@ def main():
 
 def runExperiment():
     cfg['seed'] = int(cfg['model_tag'].split('_')[0])
+    # 为CPU设置种子用于生成随机数，以使得结果是确定的
     torch.manual_seed(cfg['seed'])
+    # 为当前GPU设置随机种子
+    # torch.cuda.manual_seed_all()为所有的GPU设置种子
     torch.cuda.manual_seed(cfg['seed'])
+    
     dataset = fetch_dataset(cfg['data_name'])
-    print("zzzzzzzzzz")
     process_dataset(dataset)
     data_loader = make_data_loader(dataset, cfg['model_name'])
     # what is model?
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     print("model", model)
-    return
+
     if cfg['model_name'] != 'base':
         optimizer = make_optimizer(model, cfg['model_name'])
         scheduler = make_scheduler(optimizer, cfg['model_name'])

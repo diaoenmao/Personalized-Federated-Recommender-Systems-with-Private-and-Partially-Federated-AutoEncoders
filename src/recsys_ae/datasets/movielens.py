@@ -14,19 +14,15 @@ class ML100K(Dataset):
     file = [('https://files.grouplens.org/datasets/movielens/ml-100k.zip', '0e33842e24a9c977be4e0107933c0723')]
 
     def __init__(self, root, split, data_mode, target_mode, transform=None):
-        print("---------------zzzz")
         self.root = os.path.expanduser(root)
-        print("self.root", self.root)
         self.split = split
         self.data_mode = data_mode
         self.target_mode = target_mode
         self.transform = transform
         if not check_exists(self.processed_folder):
             self.process()
-        print("5555")
         self.data, self.target = load(os.path.join(self.processed_folder, self.target_mode, '{}.pt'.format(self.split)),
                                       mode='pickle')
-        print("6666")
         if self.data_mode == 'user':
             pass
         elif self.data_mode == 'item':
@@ -149,13 +145,24 @@ class ML100K(Dataset):
     def make_explicit_data(self):
         data = np.genfromtxt(os.path.join(self.raw_folder, 'ml-100k', 'u.data'), delimiter='\t')
         user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
+
+        # user_id: all sorted unique user_id
+        # user_inv: The index of (old array[i] in new array)
         user_id, user_inv = np.unique(user, return_inverse=True)
         item_id, item_inv = np.unique(item, return_inverse=True)
         M, N = len(user_id), len(item_id)
+
+        # key: unique user id
+        # val: index
         user_id_map = {user_id[i]: i for i in range(len(user_id))}
         item_id_map = {item_id[i]: i for i in range(len(item_id))}
+        
+        # np.array(): index array
+        # np.array()[user_inv]: 还是user_inv?
+        ceshi = np.array([user_id_map[i] for i in user_id], dtype=np.int64)
         user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(user.shape)
         item = np.array([item_id_map[i] for i in item_id], dtype=np.int64)[item_inv].reshape(item.shape)
+
         idx = np.random.permutation(user.shape[0])
         num_train = int(user.shape[0] * 0.9)
         train_idx, test_idx = idx[:num_train], idx[num_train:]
@@ -207,6 +214,7 @@ class ML100K(Dataset):
         age[(age >= 45) & (age <= 49)] = 4
         age[(age >= 50) & (age <= 55)] = 5
         age[age >= 56] = 6
+        ceshi = np.eye(7, dtype=np.float32)
         age = np.eye(7, dtype=np.float32)[age]
         gender = le.fit_transform(user_profile['gender'].to_numpy()).astype(np.int64)
         gender = np.eye(len(le.classes_), dtype=np.float32)[gender]
