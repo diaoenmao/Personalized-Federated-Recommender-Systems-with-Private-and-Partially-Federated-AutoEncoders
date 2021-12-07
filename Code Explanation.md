@@ -100,19 +100,20 @@ Take **train_recsys_joint.py** as example
             3. [csr_matrix](https://blog.csdn.net/The_Time_Runner/article/details/93641286) ：Compressed Sparse Row matrix，记录每行第一个元素在values中出现的位置
             4. Reference: https://www.cnblogs.com/zhangchaoyang/articles/5483453.html
    
-      2.  data.py /```make_pair_transform(dataset)```：data.py / Class PairInput(torch) => datasets / utils.py / ```Compose(object)```:
+      2. data.py /```make_pair_transform(dataset)```：data.py / Class PairInput(torch) => datasets / utils.py / ```Compose(object)```:
    
          1. 前置知识: 实例化后，将实例当做函数调用会到```__call__()```, 例如a = A(), a() (调用```__call__()```)
          2. 前置知识: 如果class继承pytorch，然后a(params), 会调用```__call__()```, 而后```__call()___```中调用```forward()```, 并把参数传过去
          3. data.py / Class PairInput(torch) / ```forward(input)```: 
-         4. 流程: dataset['train'].trainsform(input) => datasets.Compose实例的```__call__()``` => PairInput实例的```__call()__``` => PairInput实例的```forward()```
-   
+         4. 流程: dataset['train'].transform(input) => 在datasets / utils.py / Compose实例的```__call__()```中遍历 => 遍历的PairInput实例的```__call()__``` => PairInput实例的```forward()```
+         4. dataset['train'].transform 会在__时候调用
+      
       3. data.py /```make_flat_transform(dataset)```：data.py / Class FlatInput(torch) => datasets / utils.py / ```Compose(object)```:
-   
+      
          1. 基本同```data.py / make_pair_transform(dataset)```
-   
+      
       4. dataset为dict, 其中dataset['train']和dataset['test']都为movielens.py的某一个class实例
-   
+      
    3. utils.py / ```process_dataset(dataset)```:
    
       1. 增加cfg['data_size'], cfg['num_users']
@@ -124,6 +125,18 @@ Take **train_recsys_joint.py** as example
       1. 遍历dataset的key, 此时key为'train'和'test'
       2. torch.utils.data.DataLoader: https://www.cnblogs.com/dan-baishucaizi/p/14529897.html， https://pytorch-cn.readthedocs.io/zh/latest/package_references/data/
          1. 当在GPU上训练，pin_memory为True
+   
+   5. models / ae.py
+   
+      1. 'models.ae().to(cfg["device"])' 通过eval初始化不同的model class =》datasets / ae.py / class ae
+         1. 提取一些值,  ![image-20211204233610478](/Users/qile/Library/Application Support/typora-user-images/image-20211204233610478.png)，user_profile和item_attr是来自movielens.py / ```make_info()```的数据的column数
+         2. 初始化models / ae.py / class AE
+            1. 初始化Encoder, Decoder。注意cfg['data_mode']为'user'时，初始化item, 反之亦然。
+               1. 一些前置内容：http://speech.ee.ntu.edu.tw/~tlkagk/courses_ML20.html
+               2. ae.py / Encoder:
+                  1. ```Torch.nn.Linear()```， https://pytorch.org/docs/stable/generated/torch.nn.Linear.html， https://blog.csdn.net/qq_42079689/article/details/102873766:
+                     1. 设置全连接层
+               3. Decoder
 
 
 
