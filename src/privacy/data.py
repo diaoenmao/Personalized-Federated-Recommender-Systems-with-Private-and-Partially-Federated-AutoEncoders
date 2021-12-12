@@ -82,6 +82,20 @@ def make_flat_transform(dataset):
 
 
 def input_collate(batch):
+
+    """
+    Define a batch data handler.
+
+    Parameters:
+        batch - List. The list result returned by the __getitem()__ of the dataset instance. 
+
+    Returns:
+        self-defined dict or default_collate(batch)
+
+    Raises:
+        None
+    """
+
     if isinstance(batch[0], dict):
         return {key: [b[key] for b in batch] for key in batch[0]}
     else:
