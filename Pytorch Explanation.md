@@ -1,6 +1,6 @@
 **前置知识: Python迭代器，生成器**
 
-- 迭代器: https://www.bilibili.com/video/BV1BT4y1P7nn?from=search&seid=11200523217797380099&spm_id_from=333.337.0.0
+- 迭代器: https://www.bilibili.com/video/BV1BT4y1P7nn?from=search&seid=11200523217797380099&spm_id_from=333.337.0.0, http://www.yulongjun.com/python/20170510-07-iterables-interators-generators-verbose/
   - 迭代器类型的定义:
     - 当类中定义了```__iter___```和```__next__```两个方法
     - ```__iter```方法需要返回对象本身，即: self

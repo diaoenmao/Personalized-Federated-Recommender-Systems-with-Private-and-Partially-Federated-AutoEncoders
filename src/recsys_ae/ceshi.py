@@ -31,18 +31,127 @@ from collections.abc import Iterator, Iterable
 
 # print('models.{}().to(cfg["device"])'.format('zzzzz'))
 
-def func():
-    yield 1
+# def func():
+#     yield 1
 
-obj = func()
-print(obj.__iter__())
-print("----", obj.__iter__() == obj)
-print(next(obj))
-print(isinstance(obj, Iterator))
-print(isinstance(obj, Iterable))
+# obj = func()
+# print(obj.__iter__())
+# print("----", obj.__iter__() == obj)
+# print(next(obj))
+# print(isinstance(obj, Iterator))
+# print(isinstance(obj, Iterable))
 
-a = [1,2,3]
-print(a.__iter__())
-print("----", a.__iter__() == a)
-b = a.__iter__()
-print(next(b))
+# a = [1,2,3]
+# print(a.__iter__())
+# print("----", a.__iter__() == a)
+# b = a.__iter__()
+# print(next(b))
+
+
+# f = open('./ceshi.txt','r') # opening a file
+# print(f.readlines())
+
+import logging
+import os
+import errno
+
+def makedir_exist_ok(path):
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            pass
+        else:
+            raise
+    return  
+
+def generate_logger(log_path):
+    logger = logging.getLogger('Apollo_logger')
+
+    if not logger.handlers:
+        logger.setLevel(level=logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+        handler = logging.FileHandler(log_path)
+        handler.setFormatter(formatter)
+        
+        logger.addHandler(handler)
+
+        # 输出到窗口
+        # handler = logging.StreamHandler(sys.stdout)
+        # handler.setFormatter(formatter)
+        # logger.addHandler(handler)
+    
+    return logger
+
+def log(msg, self_id, task_id, test_id=None):
+    
+    print("~~~~",msg)
+    root = os.path.abspath(os.path.dirname(__file__))
+    root = os.path.join(root, 'log_file')
+
+    self_id = str(self_id)
+    task_id = str(task_id)
+    if test_id:
+        test_id = str(test_id)
+
+    log_path = None 
+    if test_id is None:
+        makedir_exist_ok(os.path.join(root, self_id, 'task', task_id, 'train'))
+        log_path = os.path.join(root, self_id, 'task', task_id, 'train', 'current_task.log')
+    else:
+        makedir_exist_ok(os.path.join(root, self_id, 'task', task_id, 'test', test_id))
+        log_path = os.path.join(root, self_id, 'task', task_id, 'test', test_id, 'current_test.log')
+    
+    print("log_path-------------------------", log_path, type(log_path))
+    logger = generate_logger(log_path)
+    logger.debug(msg)
+
+    return
+
+import sys
+# from logging.handlers import TimedRotatingFileHandler
+def get_log(self_id, task_id, test_id=None):
+
+    """
+    read txt file and return content of txt file.
+
+    Parameters:
+       self_id - id of current user
+       task_id - task_id of task
+       test_id - test_id of test
+
+    Returns:
+        data - List. ['first log_interval\n', 'second\n', 'third']
+
+    Raises:
+        KeyError - raises an exception
+    """    
+
+    root = os.path.abspath(os.path.dirname(__file__))
+    root = os.path.join(root, 'log_file')
+
+    self_id = str(self_id)
+    task_id = str(task_id)
+    if test_id:
+        test_id = str(test_id)
+
+    log_path = None
+    if test_id is None:
+        log_path = os.path.join(root, self_id, 'task', task_id, 'train', 'current_task.log')
+        f = open(log_path, "r")
+        return f.readlines()
+            
+    else:
+        log_path = os.path.join(root, self_id, 'task', task_id, 'test', test_id, 'current_test.log')
+        f = open(log_path, "r")
+        return f.readlines() 
+
+
+
+log("zzz", 1, 1)
+log("ddd", 1, 1)
+log("aaa", 1, 1)
+log("bbb", 1, 1)
+
+print(get_log(1,1))
