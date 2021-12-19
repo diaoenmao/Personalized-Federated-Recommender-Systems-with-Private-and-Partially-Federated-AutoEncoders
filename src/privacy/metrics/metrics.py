@@ -50,9 +50,26 @@ def MAP(output, target, user, item, topk=10):
 
 
 class Metric(object):
+
+    """
+    Initialize metric for measuring the result.
+
+    Parameters:
+        metric_name - dict. 
+
+    Returns:
+        Instance of class Metric.
+
+    Raises:
+        None
+    """
+
     def __init__(self, metric_name):
+        # assign metric_name to self.metric_name
         self.metric_name = self.make_metric_name(metric_name)
+        # assign the initial information accoring to cfg['data_name'] and cfg['target_mode']
         self.pivot, self.pivot_name, self.pivot_direction = self.make_pivot()
+        # assign the lambda function to the metric (dict)
         self.metric = {'Loss': (lambda input, output: output['loss'].item()),
                        'RMSE': (lambda input, output: RMSE(output['target_rating'], input['target_rating'])),
                        'Accuracy': (lambda input, output: Accuracy(output['target_rating'], input['target_rating'])),

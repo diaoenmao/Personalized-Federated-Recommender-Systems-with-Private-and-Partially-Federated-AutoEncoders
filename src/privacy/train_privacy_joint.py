@@ -69,25 +69,36 @@ def runExperiment():
     # data_loader['train'] is the instance of DataLoader (class in PyTorch), which is iterable (可迭代对象)
     data_loader = make_data_loader(dataset)
 
-    # models / cfg['model_name'].py initializes the model
-    # for example, models / ae.py / class AE
+    # models / cfg['model_name'].py initializes the model, for example, models / ae.py / class AE
     # .to(cfg["device"]) means copy the tensor to the specific GPU or CPU, and run the 
     # calculation there.
+    # model is the instance of class AE (in models / ae.py). It contains the training process of 
+    #   Encoder and Decoder.
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     print("model", model)
 
     if cfg['model_name'] != 'base':
+        # utils.py / make_optimizer()
         optimizer = make_optimizer(model, cfg['model_name'])
+        # utils.py / make_scheduler()
         scheduler = make_scheduler(optimizer, cfg['model_name'])
     else:
         optimizer = None
         scheduler = None
     if cfg['target_mode'] == 'explicit':
+        # metric / class Metric
+        # return the instance of Metric, which contains function and initial information
+        #   we need for measuring the result
         metric = Metric({'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']})
     elif cfg['target_mode'] == 'implicit':
+        # metric / class Metric
+        # return the instance of Metric, which contains function and initial information
+        #   we need for measuring the result
         metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     else:
         raise ValueError('Not valid target mode')
+    
+    # Handle resuming the training situation
     if cfg['resume_mode'] == 1:
         result = resume(cfg['model_tag'])
         last_epoch = result['epoch']
@@ -102,8 +113,12 @@ def runExperiment():
     else:
         last_epoch = 1
         logger = make_logger('output/runs/train_{}'.format(cfg['model_tag']))
+
+    # Use multiple GPU to accelarate training
     if cfg['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
+
+    # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         train(data_loader['train'], model, optimizer, metric, logger, epoch)
         test(data_loader['test'], model, metric, logger, epoch)
@@ -128,24 +143,61 @@ def runExperiment():
 
 
 def train(data_loader, model, optimizer, metric, logger, epoch):
+
+    """
+    train the model
+
+    Parameters:
+        data_loader - Object. Instance of DataLoader(data.py / make_data_loader(dataset)). 
+            It constains the processed data for training. data_loader['train'] is the instance of DataLoader (class in PyTorch), 
+            which is iterable (可迭代对象)
+        model - Object. Instance of class AE (in models / ae.py). 
+            It contains the training process of Encoder and Decoder.
+        optimizer - Object. Instance of class Optimizer, which is in Pytorch(utils.py / make_optimizer()). 
+            It contains the method to adjust learning rate.
+        metric - Object. Instance of class Metric (metric / class Metric).
+            It contains function and initial information we need for measuring the result
+        logger - Object. Instance of logger.py / class Logger.
+        epoch - Integer. The epoch number in for loop.
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
+
     logger.safe(True)
+    # Set the model in training mode
     model.train(True)
     start_time = time.time()
+    # Iterate data_loader
     for i, input in enumerate(data_loader):
+        # utils.py / collate(input)
         input = collate(input)
         input_size = len(input[cfg['data_mode']])
         if input_size == 0:
             continue
         input = to_device(input, cfg['device'])
+        # put the input in model => forward() => train Encoder and Decoder and get loss
         output = model(input)
         output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
+
+        # update parameters of model
         if optimizer is not None:
+            # Zero the gradient
             optimizer.zero_grad()
+            # Calculate the gradient of each parameter
             output['loss'].backward()
+            # Clips gradient norm of an iterable of parameters.
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+            # Perform a step of parameter through gradient descent Update
             optimizer.step()
+
         evaluation = metric.evaluate(metric.metric_name['train'], input, output)
         logger.append(evaluation, 'train', n=input_size)
+
+        # Record information when epoch is a multiple of a certain number
         if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
             _time = (time.time() - start_time) / (i + 1)
             lr = optimizer.param_groups[0]['lr'] if optimizer is not None else 0

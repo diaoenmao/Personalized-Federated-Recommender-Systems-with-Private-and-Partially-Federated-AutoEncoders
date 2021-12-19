@@ -274,6 +274,22 @@ class Stats(object):
 
 
 def make_optimizer(model, tag):
+
+    """
+    Generate optimizer based on the parameters of model, the name of the model
+    and the optimizer name
+
+    Parameters:
+        model - Object. The instance of model class
+        tag - String. The name of the model
+
+    Returns:
+        optimizer - Object. The instance of corresponding optimizer class
+
+    Raises:
+        None
+    """
+
     if cfg[tag]['optimizer_name'] == 'SGD':
         optimizer = optim.SGD(model.parameters(), lr=cfg[tag]['lr'], momentum=cfg[tag]['momentum'],
                               weight_decay=cfg[tag]['weight_decay'], nesterov=cfg[tag]['nesterov'])
@@ -288,6 +304,22 @@ def make_optimizer(model, tag):
 
 
 def make_scheduler(optimizer, tag):
+
+    """
+    Generate scheduler based on the optimizer, the name of the model
+    and the scduler name. Scheduler would adjust the learning rate of optimizer.
+
+    Parameters:
+        optimizer - Object. The instance of optimizer class
+        tag - String. The name of the model
+
+    Returns:j
+        scheduler - Object. The instance of corresponding scheduler class
+
+    Raises:
+        None
+    """
+
     if cfg[tag]['scheduler_name'] == 'None':
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[65535])
     elif cfg[tag]['scheduler_name'] == 'StepLR':

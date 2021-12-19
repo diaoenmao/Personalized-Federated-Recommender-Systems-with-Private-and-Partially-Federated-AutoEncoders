@@ -138,6 +138,7 @@ class ML100K(Dataset):
             extract_file(os.path.join(self.raw_folder, filename))
         return
 
+    # Express the object in the form of a string
     def __repr__(self):
         fmt_str = 'Dataset {}\nSize: {}\nRoot: {}\nSplit: {}'.format(
             self.__class__.__name__, self.__len__(), self.root, self.split)
@@ -219,6 +220,7 @@ class ML100K(Dataset):
         age[(age >= 50) & (age <= 55)] = 5
         age[age >= 56] = 6
         ceshi = np.eye(7, dtype=np.float32)
+        # np array special usage 
         age = np.eye(7, dtype=np.float32)[age]
         gender = le.fit_transform(user_profile['gender'].to_numpy()).astype(np.int64)
         gender = np.eye(len(le.classes_), dtype=np.float32)[gender]

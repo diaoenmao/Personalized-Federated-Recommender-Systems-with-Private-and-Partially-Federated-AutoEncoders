@@ -219,6 +219,7 @@ class FlatInput(torch.nn.Module):
                 if 'target_item_attr' in input:
                     del input['target_item_attr']
             else:
+                # delete side information if self.info != 1
                 if 'user_profile' in input:
                     del input['user_profile']
                 if 'target_user_profile' in input:
