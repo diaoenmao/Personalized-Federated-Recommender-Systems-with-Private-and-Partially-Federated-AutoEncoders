@@ -7,7 +7,9 @@
         {   
             "program": "${workspaceFolder}/train_privacy_joint.py",
         ​	"args": [
-​                "--control_name", "ML100K_user_implicit_ae_1_random-2_constant-0.1_constant_1",
+​                "--control_name", "ML100K_user_explicit_ae_1_random-2_constant-0.1_constant_1",
+                "--train_mode", "private",
+                "--private_decoder_user", "50",            
 ​                "--num_workers", "0",
 ​                "--init_seed", "0",
 ​                "--num_experiments", "1", 

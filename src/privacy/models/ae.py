@@ -1,7 +1,10 @@
+import os 
 import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from utils import load
 from .models_utils import loss_fn
 from config import cfg
 
@@ -168,6 +171,13 @@ class AE(nn.Module):
             if 'item_attr' in info_size:
                 self.item_attr = Encoder(info_size['item_attr'], encoder_hidden_size)
 
+    def processed_folder(self, epoch):
+        root = './federated_decoder/'
+        root = os.path.expanduser(root)
+        root
+        res = os.path.join(root, str(cfg['private_decoder_user']), str(epoch), 'federated_decoder.pt')
+        return res
+
     def forward(self, input):
         output = {}
         # torch.no_grad(): Context-manager that disabled gradient calculation.
@@ -215,6 +225,12 @@ class AE(nn.Module):
         
         # dropout the encoder result
         code = self.dropout(encoded)
+        
+        # When input['epoch'] > 1, it means we are at round 2 or more.
+        # We need to use federated decoder in the last round
+        if 'epoch' in input and input['epoch'] > 1:
+            self.decoder = load(self.processed_folder(input['epoch']-1), mode='pickle')
+        
         # pass the encoder result to decoder
         # in self.decoder: __call__() => forward()
         decoded = self.decoder(code)
@@ -261,6 +277,9 @@ def ae(encoder_num_users=None, encoder_num_items=None, decoder_num_users=None, d
     encoder_hidden_size = cfg['ae']['encoder_hidden_size']
     decoder_hidden_size = cfg['ae']['decoder_hidden_size']
     info_size = cfg['info_size']
+
+    if cfg['data_mode'] == 'user':
+        cfg['Decoder_instance'] = Decoder(decoder_num_items, decoder_hidden_size)
 
     model = AE(encoder_num_users, encoder_num_items, decoder_num_users, decoder_num_items, encoder_hidden_size,
                decoder_hidden_size, info_size)

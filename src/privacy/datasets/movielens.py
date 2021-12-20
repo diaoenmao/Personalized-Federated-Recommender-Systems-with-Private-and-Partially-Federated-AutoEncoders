@@ -2,6 +2,7 @@ import numpy as np
 import scipy
 import os
 import torch
+import random
 from torch.utils.data import Dataset
 from utils import check_exists, makedir_exist_ok, save, load
 from .datasets_utils import download_url, extract_file
@@ -24,8 +25,27 @@ class ML100K(Dataset):
             self.process()
         self.data, self.target = load(os.path.join(self.processed_folder, self.target_mode, '{}.pt'.format(self.split)),
                                       mode='pickle')
+        user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
+        self.user_profile = {'data': user_profile, 'target': user_profile}
+        item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
+        self.item_attr = {'data': item_attr, 'target': item_attr}
+
         if self.data_mode == 'user':
-            pass
+            if cfg['private_decoder_user'] > 0:
+                # set seed for same random result
+                random.seed(cfg['private_decoder_user'])
+                # m is the total unique user
+                m = self.data.shape[0]
+                # get cfg['private_decoder_user'] random index from range(0, m), no duplicate
+                select_index = random.sample(range(0, m), min(cfg['private_decoder_user'], m))
+                # select_index = np.array(select_index)
+                # self.data.todense()
+                # self.data = csr_matrix(self.data)[np.array(select_index),:]
+                self.data = self.data[select_index]
+                self.target = self.target[select_index]
+                self.user_profile['data'] = self.user_profile['data'][select_index]
+                self.user_profile['target'] = self.user_profile['target'][select_index]
+                
         # elif self.data_mode == 'item':
         #     data_coo = self.data.tocoo()
         #     target_coo = self.target.tocoo()
@@ -35,10 +55,7 @@ class ML100K(Dataset):
         #                            shape=(self.target.shape[1], self.target.shape[0]))
         else:
             raise ValueError('Not valid data mode')
-        user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
-        self.user_profile = {'data': user_profile, 'target': user_profile}
-        item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
-        self.item_attr = {'data': item_attr, 'target': item_attr}
+        
 
     def __getitem__(self, index):
 
@@ -176,11 +193,12 @@ class ML100K(Dataset):
         train_idx, test_idx = idx[:num_train], idx[num_train:]
         train_user, train_item, train_rating = user[train_idx], item[train_idx], rating[train_idx]
         test_user, test_item, test_rating = user[test_idx], item[test_idx], rating[test_idx]
+        # 快速生成二维矩阵带值
         train_data = csr_matrix((train_rating, (train_user, train_item)), shape=(M, N))
         train_target = train_data
         test_data = train_data
         test_target = csr_matrix((test_rating, (test_user, test_item)), shape=(M, N))
-        # train_data == train_target and test_data == test_target
+        # train_data == train_target 
         return (train_data, train_target), (test_data, test_target)
 
     def make_implicit_data(self):

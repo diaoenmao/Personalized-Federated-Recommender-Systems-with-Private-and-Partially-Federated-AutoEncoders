@@ -6,13 +6,13 @@ import os
 import shutil
 import time
 import torch
+import copy
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
 from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
 from logger import make_logger
-
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
@@ -141,6 +141,11 @@ def runExperiment():
         logger.reset()
     return
 
+def processed_folder(epoch):
+    root = './federated_decoder/'
+    root = os.path.expanduser(root)
+    res = os.path.join(root, str(cfg['private_decoder_user']), str(epoch), 'federated_decoder.pt')
+    return res
 
 def train(data_loader, model, optimizer, metric, logger, epoch):
 
@@ -171,6 +176,7 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
     # Set the model in training mode
     model.train(True)
     start_time = time.time()
+    server_decoder_model = copy.deepcopy(cfg['Decoder_instance'])
     # Iterate data_loader
     for i, input in enumerate(data_loader):
         # utils.py / collate(input)
@@ -181,7 +187,7 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
         if input_size == 0:
             continue
         input = to_device(input, cfg['device'])
-        
+        input['epoch'] = epoch
         # put the input in model => forward() => train Encoder and Decoder and get loss
         output = model(input)
         output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
@@ -196,6 +202,11 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
             # Perform a step of parameter through gradient descent Update
             optimizer.step()
+
+        # named_parameters() returns back list of tuple (generator)
+        for key, value in model.decoder.named_parameters():
+            # state_dict() returns back dictionary
+            server_decoder_model.state_dict()[key] += model.decoder.state_dict()[key]
 
         evaluation = metric.evaluate(metric.metric_name['train'], input, output)
         logger.append(evaluation, 'train', n=input_size)
@@ -213,6 +224,13 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
+
+    if cfg['train_mode'] == "private":
+        for key, value in model.decoder.named_parameters():
+            server_decoder_model.state_dict()[key] = torch.div(server_decoder_model.state_dict()[key], cfg['private_decoder_user'])
+
+    save(server_decoder_model, processed_folder(epoch), mode='pickle')
+    
     logger.safe(False)
     return
 
