@@ -193,10 +193,26 @@ def make_flat_index(root, given=None):
 
 
 class Compose(object):
+
+    """
+    class for wrapping all the operation of the input data
+
+    Parameters:
+        transforms - List[Object]. The Object is the instance of Operation class
+        input - Dict. Input data
+
+    Returns:
+        input - Dict. Processed input data
+
+    Raises:
+        None
+    """
+
     def __init__(self, transforms):
         self.transforms = transforms
 
     def __call__(self, input):
+        # make a serires transforms of the input
         for t in self.transforms:
             input = t(input)
         return input

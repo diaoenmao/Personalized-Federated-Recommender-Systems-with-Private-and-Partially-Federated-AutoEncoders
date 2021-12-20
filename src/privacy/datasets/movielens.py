@@ -41,6 +41,9 @@ class ML100K(Dataset):
         self.item_attr = {'data': item_attr, 'target': item_attr}
 
     def __getitem__(self, index):
+
+        # Retrieve self.data[index] data
+        # 取出用户为Index的数据
         data = self.data[index].tocoo()
         target = self.target[index].tocoo()
         if self.data_mode == 'user':
@@ -177,6 +180,7 @@ class ML100K(Dataset):
         train_target = train_data
         test_data = train_data
         test_target = csr_matrix((test_rating, (test_user, test_item)), shape=(M, N))
+        # train_data == train_target and test_data == test_target
         return (train_data, train_target), (test_data, test_target)
 
     def make_implicit_data(self):
@@ -202,6 +206,7 @@ class ML100K(Dataset):
         train_target = train_data
         test_data = train_data
         test_target = csr_matrix((test_rating, (test_user, test_item)), shape=(M, N))
+        # train_data == train_target and test_data == test_target
         return (train_data, train_target), (test_data, test_target)
 
     def make_info(self):

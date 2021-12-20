@@ -70,7 +70,7 @@ class Decoder(nn.Module):
     Initialize Decoder.
 
     Parameters:
-        input_size - Integer. The number of items. ex. 1682.
+        output_size - Integer. The number of items. ex. 1682.
         hidden_size - List[Integer]. ex. [128, 256]. The size of neural network of decoder.
 
     Returns:
@@ -173,10 +173,13 @@ class AE(nn.Module):
         # torch.no_grad(): Context-manager that disabled gradient calculation.
         with torch.no_grad():
             if cfg['data_mode'] == 'user':
+                # get the unique user of batch data, which should equal to batch size
                 user, user_idx = torch.unique(torch.cat([input['user'], input['target_user']]), return_inverse=True)
                 num_users = len(user)
                 rating = torch.zeros((num_users, self.encoder.input_size), device=user.device)
-                rating[user_idx[:len(input['user'])], input['item']] = input['rating']
+                # a = len(input['user'])
+                # b = user_idx[:len(input['user'])]
+                rating[ user_idx[:len(input['user'])], input['item'] ] = input['rating']
                 input['rating'] = rating
                 rating = torch.full((num_users, self.decoder.output_size), float('nan'), device=user.device)
                 rating[user_idx[len(input['user']):], input['target_item']] = input['target_rating']
@@ -218,6 +221,7 @@ class AE(nn.Module):
 
         # handle output
         output['target_rating'] = decoded
+        # generate boolean matrix to indicate if the input['target_rating'][x][y] is infinite
         target_mask = ~(input['target_rating'].isnan())
         output['target_rating'], input['target_rating'] = output['target_rating'][target_mask], input['target_rating'][
             target_mask]

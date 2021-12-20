@@ -33,6 +33,7 @@ def save(input, path, mode='torch'):
     elif mode == 'np':
         np.save(path, input, allow_pickle=True)
     elif mode == 'pickle':
+        # serializing object
         pickle.dump(input, open(path, 'wb'))
     else:
         raise ValueError('Not valid save mode')
@@ -45,6 +46,7 @@ def load(path, mode='torch'):
     elif mode == 'np':
         return np.load(path, allow_pickle=True)
     elif mode == 'pickle':
+        # deserializing object
         return pickle.load(open(path, 'rb'))
     else:
         raise ValueError('Not valid save mode')
@@ -360,6 +362,22 @@ def resume(model_tag, load_tag='checkpoint', verbose=True):
 
 
 def collate(input):
+
+    """
+    for every key:value pair in input, concatenate the value(torch.tensor) by row
+
+    Parameters:
+        input - Dict. Input is the batch_size data that has been processed by 
+            input_collate(batch), which is in data.py / input_collate(batch)
+
+    Returns:
+        input - Dict. Processed input dict. Since we have 1 dimension data in sub item.
+            The final value of each key would be 1 long tensor, such as 8200 length. 
+
+    Raises:
+        None
+    """
+
     for k in input:
         input[k] = torch.cat(input[k], 0)
     return input

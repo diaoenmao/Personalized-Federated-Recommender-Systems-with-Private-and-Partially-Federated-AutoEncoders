@@ -2,6 +2,7 @@ import copy
 import torch
 import numpy as np
 import models
+import collections
 from config import cfg
 from scipy.sparse import csr_matrix
 from torchvision import transforms
@@ -95,9 +96,16 @@ def input_collate(batch):
     Raises:
         None
     """
-
+    
     if isinstance(batch[0], dict):
-        return {key: [b[key] for b in batch] for key in batch[0]}
+        
+        # res = collections.defaultdict(list)
+        # for key in batch[0]:
+        #     for item in batch:
+        #         res[key].append(item[key])
+
+        res = {key: [b[key] for b in batch] for key in batch[0]}
+        return res
     else:
         return default_collate(batch)
 
@@ -194,6 +202,23 @@ class PairInput(torch.nn.Module):
 
 
 class FlatInput(torch.nn.Module):
+
+    """
+    Modify input data
+   
+    Parameters:
+        data_mode - String. cfg['data_mode'] => user or item.
+        info - Integer. cfg['info'] => 1 or 0.
+        num_users - Integer. The number of unique users.
+        num_items - Integer. The number of unique items.
+
+    Returns:
+        input - Dict. Processed input data
+
+    Raises:
+        None
+    """
+
     def __init__(self, data_mode, info, num_users, num_items):
         super().__init__()
         self.data_mode = data_mode
@@ -203,10 +228,14 @@ class FlatInput(torch.nn.Module):
 
     def forward(self, input):
         if self.data_mode == 'user':
+            # copy the single tensor for input['item'].size(0) times
+            # For example, tensor([597]) and input['item'].size(0) == 24
+            # tensor([597, 597.....])
             input['user'] = input['user'].repeat(input['item'].size(0))
             input['target_user'] = input['target_user'].repeat(input['target_item'].size(0))
             if self.info == 1:
                 if 'user_profile' in input:
+                    # reshape to 1 row and x col
                     input['user_profile'] = input['user_profile'].view(1, -1)
                     if input['item'].size(0) == 0 and input['target_item'].size(0) == 0:
                         input['user_profile'] = input['user_profile'].repeat(input['item'].size(0), 1)
@@ -214,6 +243,7 @@ class FlatInput(torch.nn.Module):
                     input['item_attr'] = input['item_attr'].sum(dim=0, keepdim=True)
                     if input['item'].size(0) == 0 and input['target_item'].size(0) == 0:
                         input['item_attr'] = input['item_attr'].repeat(input['item'].size(0), 1)
+                # delete side information in target
                 if 'target_user_profile' in input:
                     del input['target_user_profile']
                 if 'target_item_attr' in input:

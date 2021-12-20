@@ -174,11 +174,14 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
     # Iterate data_loader
     for i, input in enumerate(data_loader):
         # utils.py / collate(input)
+        # input is the batch_size data that has been processed by input_collate(batch)
+        # input_collate(batch) is in data.py / input_collate(batch)
         input = collate(input)
         input_size = len(input[cfg['data_mode']])
         if input_size == 0:
             continue
         input = to_device(input, cfg['device'])
+        
         # put the input in model => forward() => train Encoder and Decoder and get loss
         output = model(input)
         output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
