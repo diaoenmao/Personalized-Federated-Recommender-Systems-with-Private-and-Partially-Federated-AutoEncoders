@@ -4,8 +4,11 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
+
+
         {   
-            "program": "${workspaceFolder}/train_privacy_joint.py",
+            "program": "${workspaceFolder}/train_privacy_federated.py",
         ​	"args": [
 ​                "--control_name", "ML100K_user_explicit_ae_1_random-2_constant-0.1_constant_1",
                 "--train_mode", "private",

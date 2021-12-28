@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import load
+from utils import load, processed_folder
 from .models_utils import loss_fn
 from config import cfg
 
@@ -155,6 +155,8 @@ class AE(nn.Module):
             # Initialize Encoder and Decoder
             self.encoder = Encoder(encoder_num_items, encoder_hidden_size)
             self.decoder = Decoder(decoder_num_items, decoder_hidden_size)
+            self.decoder_num_items = decoder_num_items
+            self.decoder_hidden_size = decoder_hidden_size
         # elif cfg['data_mode'] == 'item':
         #     self.encoder = Encoder(encoder_num_users, encoder_hidden_size)
         #     self.decoder = Decoder(decoder_num_users, decoder_hidden_size)
@@ -170,13 +172,6 @@ class AE(nn.Module):
                 self.user_profile = Encoder(info_size['user_profile'], encoder_hidden_size)
             if 'item_attr' in info_size:
                 self.item_attr = Encoder(info_size['item_attr'], encoder_hidden_size)
-
-    def processed_folder(self, epoch):
-        root = './federated_decoder/'
-        root = os.path.expanduser(root)
-        root
-        res = os.path.join(root, str(cfg['private_decoder_user']), str(epoch), 'federated_decoder.pt')
-        return res
 
     def forward(self, input):
         output = {}
@@ -229,8 +224,12 @@ class AE(nn.Module):
         # When input['epoch'] > 1, it means we are at round 2 or more.
         # We need to use federated decoder in the last round
         if 'epoch' in input and input['epoch'] > 1:
-            self.decoder = load(self.processed_folder(input['epoch']-1), mode='pickle')
+            last_epoch_global_decoder = load(processed_folder(input['epoch']-1, False))
         
+            for key, value in self.decoder.named_parameters():
+                # state_dict() returns back dictionary
+                self.decoder.state_dict()[key] = last_epoch_global_decoder.state_dict()[key]
+
         # pass the encoder result to decoder
         # in self.decoder: __call__() => forward()
         decoded = self.decoder(code)

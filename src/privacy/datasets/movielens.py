@@ -169,24 +169,24 @@ class ML100K(Dataset):
         user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
 
         # user_id: all sorted unique user_id
-        # user_inv: The index of (old array[i] in new array)
+        # user_inv: The index of (new array[i] in old array[i])
+        # 新列表元素在旧列表中的位置，并以列表形式储存在user_inv中
         user_id, user_inv = np.unique(user, return_inverse=True)
         item_id, item_inv = np.unique(item, return_inverse=True)
         M, N = len(user_id), len(item_id)
 
         # # key: unique user id
         # # val: index
-        # user_id_map = {user_id[i]: i for i in range(len(user_id))}
-        # item_id_map = {item_id[i]: i for i in range(len(item_id))}
+        user_id_map = {user_id[i]: i for i in range(len(user_id))}
+        item_id_map = {item_id[i]: i for i in range(len(item_id))}
         
-        # # np.array(): index array
-        # # np.array()[user_inv]: 还是user_inv?
-        # ceshi = np.array([user_id_map[i] for i in user_id], dtype=np.int64)
-        # user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(user.shape)
-        # item = np.array([item_id_map[i] for i in item_id], dtype=np.int64)[item_inv].reshape(item.shape)
+        # np.array(): index array
+        # np.array()[user_inv]: 还是user_inv?
+        user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(user.shape)
+        item = np.array([item_id_map[i] for i in item_id], dtype=np.int64)[item_inv].reshape(item.shape)
 
-        user = user_inv
-        item = item_inv
+        # user = user_inv
+        # item = item_inv
 
         idx = np.random.permutation(user.shape[0])
         num_train = int(user.shape[0] * 0.9)
