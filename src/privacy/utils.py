@@ -201,15 +201,18 @@ def process_control():
     cfg['gmf'] = {'hidden_size': 128}
     cfg['mlp'] = {'hidden_size': [128, 64, 32, 16]}
     cfg['nmf'] = {'hidden_size': [128, 64, 32, 16]}
-    cfg['ae'] = {'encoder_hidden_size': [256, 128], 'decoder_hidden_size': [128, 256]}
+    if cfg['train_mode'] == 'private':
+        cfg['ae'] = {'encoder_hidden_size': [64, 32], 'decoder_hidden_size': [32, 64]}
+    else:
+        cfg['ae'] = {'encoder_hidden_size': [256, 128], 'decoder_hidden_size': [128, 256]}
 
     # Add batch_size
     if cfg['train_mode'] == 'private':
         batch_size = {'user': {'ML100K': 1, 'ML1M': 1, 'ML10M': 1, 'ML20M': 1, 'NFP': 1},
                     'item': {'ML100K': 1, 'ML1M': 1, 'ML10M': 1, 'ML20M': 1, 'NFP': 1}}
     else:
-        batch_size = {'user': {'ML100K': 100, 'ML1M': 500, 'ML10M': 5000, 'ML20M': 5000, 'NFP': 5000},
-                    'item': {'ML100K': 100, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
+        batch_size = {'user': {'ML100K': 50, 'ML1M': 500, 'ML10M': 5000, 'ML20M': 5000, 'NFP': 5000},
+                    'item': {'ML100K': 50, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
 
     # add parameter to model
     # Example: cfg['model_name']: ae              
@@ -224,7 +227,7 @@ def process_control():
     cfg[model_name]['scheduler_name'] = 'None'
     cfg[model_name]['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
-    cfg[model_name]['num_epochs'] = 10 if model_name != 'base' else 1
+    cfg[model_name]['num_epochs'] = 20 if model_name != 'base' else 1
 
     # add parameter to local model
     cfg['local'] = {}
@@ -378,7 +381,7 @@ def resume(model_tag, load_tag='checkpoint', verbose=True):
 def collate(input):
 
     """
-    for every key:value pair in input, concatenate the value(torch.tensor) by row
+    for every key:value pair in input, concatenate the value(torch.tensor) (按行)
 
     Parameters:
         input - Dict. Input is the batch_size data that has been processed by 

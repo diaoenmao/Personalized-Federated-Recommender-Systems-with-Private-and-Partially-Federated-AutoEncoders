@@ -54,28 +54,39 @@ import numpy as np
 # u, indices = np.unique(a, return_inverse=True)
 # print(u, indices)
 
-class A:
-    def __init__(self, val=None):
-        b = val
-        pass
+# class A:
+#     def __init__(self, val=None):
+#         b = val
+#         pass
 
-# def generate(i):
-#     b = A(i)
-#     print(id(b))
+# # def generate(i):
+# #     b = A(i)
+# #     print(id(b))
 
-# for i in range(5):
-#     a = A()
-import pickle
-a = A()
-b = A()
-c = A()
-d = A()
-e = A()
+# # for i in range(5):
+# #     a = A()
+# import pickle
+# a = A()
+# b = A()
+# c = A()
+# d = A()
+# e = A()
 
-print(id(a))
-print(id(b))
-print(id(c))
-print(id(d))
-print(id(e))
+# print(id(a))
+# print(id(b))
+# print(id(c))
+# print(id(d))
+# print(id(e))
+
+x = 5
+print(id(x))
+x -= 1
+print(id(x))
+x = x - 1
+print(id(x))
+
+
+
+
 
 # pickle.dump(input, open(path, 'wb'))

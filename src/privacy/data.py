@@ -96,7 +96,7 @@ def input_collate(batch):
     Raises:
         None
     """
-    
+
     if isinstance(batch[0], dict):
         
         # res = collections.defaultdict(list)

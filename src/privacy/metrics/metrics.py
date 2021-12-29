@@ -6,6 +6,21 @@ from utils import recur
 
 
 def RMSE(output, target):
+
+    """
+    RMSE between output from decoder and the target
+
+    Parameters:
+        output - torch. 
+        target - torch.
+
+    Returns:
+        rmse - Integer. The rmse result
+
+    Raises:
+        None
+    """
+
     with torch.no_grad():
         rmse = F.mse_loss(output, target).sqrt().item()
     return rmse

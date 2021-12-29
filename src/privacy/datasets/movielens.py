@@ -31,21 +31,21 @@ class ML100K(Dataset):
         self.item_attr = {'data': item_attr, 'target': item_attr}
 
         if self.data_mode == 'user':
-            if cfg['private_decoder_user'] > 0:
-                # set seed for same random result
-                random.seed(cfg['private_decoder_user'])
-                # m is the total unique user
-                m = self.data.shape[0]
-                # get cfg['private_decoder_user'] random index from range(0, m), no duplicate
-                select_index = random.sample(range(0, m), min(cfg['private_decoder_user'], m))
-                # select_index = np.array(select_index)
-                # self.data.todense()
-                # self.data = csr_matrix(self.data)[np.array(select_index),:]
-                self.data = self.data[select_index]
-                self.target = self.target[select_index]
-                self.user_profile['data'] = self.user_profile['data'][select_index]
-                self.user_profile['target'] = self.user_profile['target'][select_index]
-                
+            # if cfg['private_decoder_user'] > 0:
+            #     # set seed for same random result
+            #     random.seed(cfg['private_decoder_user'])
+            #     # m is the total unique user
+            #     m = self.data.shape[0]
+            #     # get cfg['private_decoder_user'] random index from range(0, m), no duplicate
+            #     select_index = random.sample(range(0, m), min(cfg['private_decoder_user'], m))
+            #     # select_index = np.array(select_index)
+            #     # self.data.todense()
+            #     # self.data = csr_matrix(self.data)[np.array(select_index),:]
+            #     self.data = self.data[select_index]
+            #     self.target = self.target[select_index]
+            #     self.user_profile['data'] = self.user_profile['data'][select_index]
+            #     self.user_profile['target'] = self.user_profile['target'][select_index]
+            pass
         # elif self.data_mode == 'item':
         #     data_coo = self.data.tocoo()
         #     target_coo = self.target.tocoo()

@@ -11,6 +11,7 @@ import torch
 import copy
 import gc
 import sys
+import collections
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
 from data import fetch_dataset, make_data_loader
@@ -50,10 +51,6 @@ def main():
         runExperiment()
     return
 
-
-
-
-
 def runExperiment():
 
     # get seed and set the seed to CPU and GPU
@@ -87,9 +84,14 @@ def runExperiment():
     # a = sys.getsizeof(model)
 
     # print("model", model)
+    # model_dict = collections.defaultdict(list)
     model_list = []
     for i in range(cfg['private_decoder_user']):
+
+        # cur_name = 'model_' + str(i)
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        # model_dict[cur_name].append(model)
+        
         
         # root = processed_folder(i, True)
         # model_path = os.path.join(root, cfg['model_name'] + '.pt')
@@ -104,7 +106,10 @@ def runExperiment():
             optimizer = None
             scheduler = None
         # print(i, id(model), id(optimizer), id(scheduler))
+        # model_dict[cur_name].append(optimizer)
+        # model_dict[cur_name].append(scheduler)
         model_list.append([model, optimizer, scheduler])
+
 
         # optimizer_path = os.path.join(root, cfg['model_name'] + '_optimizer' + '.pt')
         # scheduler_path = os.path.join(root, cfg['model_name'] + '_scheduler' + '.pt')
@@ -278,9 +283,10 @@ def train(data_loader, model_list, metric, logger, epoch):
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
 
+
     if cfg['train_mode'] == "private":
         for key, value in model.decoder.named_parameters():
-            server_decoder_model.state_dict()[key] = torch.div(server_decoder_model.state_dict()[key], cfg['private_decoder_user'])
+            server_decoder_model.state_dict()[key] /= cfg['private_decoder_user']
 
     save(server_decoder_model, processed_folder(epoch, False))
     

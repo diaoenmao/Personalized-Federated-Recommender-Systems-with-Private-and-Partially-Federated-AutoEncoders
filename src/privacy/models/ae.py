@@ -1,5 +1,6 @@
 import os 
 import math
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -134,8 +135,8 @@ class AE(nn.Module):
     Parameters:
         encoder_num_users - Integer. ex. 943 
         encoder_num_items - Integer. ex. 1682
-        decoder_num_users - Integer.  ex. 943
-        decoder_num_items - Integer.  ex. 1682
+        decoder_num_users - Integer. ex. 943
+        decoder_num_items - Integer. ex. 1682
         encoder_hidden_size - List[Integer]. ex. [256, 128]. The size of neural network of encoder.
         decoder_hidden_size - List[Integer]. ex. [128, 256]. The size of neural network of decoder.
         info_size - Dict. {'user_profile': 30, 'item_attr': 18}
@@ -224,11 +225,15 @@ class AE(nn.Module):
         # When input['epoch'] > 1, it means we are at round 2 or more.
         # We need to use federated decoder in the last round
         if 'epoch' in input and input['epoch'] > 1:
+     
             last_epoch_global_decoder = load(processed_folder(input['epoch']-1, False))
-        
-            for key, value in self.decoder.named_parameters():
+
+            average_parameter = {}
+            for key, value in last_epoch_global_decoder.named_parameters():
                 # state_dict() returns back dictionary
-                self.decoder.state_dict()[key] = last_epoch_global_decoder.state_dict()[key]
+                average_parameter[key] = copy.deepcopy(last_epoch_global_decoder.state_dict()[key])
+            
+            self.decoder.load_state_dict(average_parameter)
 
         # pass the encoder result to decoder
         # in self.decoder: __call__() => forward()

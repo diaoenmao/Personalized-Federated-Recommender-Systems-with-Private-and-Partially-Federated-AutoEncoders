@@ -16,6 +16,12 @@ class Logger:
         self.history = defaultdict(list)
         self.iterator = defaultdict(int)
 
+    def reset(self):
+        self.tracker = defaultdict(int)
+        self.counter = defaultdict(int)
+        self.mean = defaultdict(int)
+        return
+
     def safe(self, write):
         if write:
             self.writer = SummaryWriter(self.log_path)
@@ -27,13 +33,22 @@ class Logger:
                 self.history[name].append(self.mean[name])
         return
 
-    def reset(self):
-        self.tracker = defaultdict(int)
-        self.counter = defaultdict(int)
-        self.mean = defaultdict(int)
-        return
-
     def append(self, result, tag, n=1, mean=True):
+
+        """
+        Append evaluation and average the evaluation dividing by total count
+
+        Parameters:
+            result - Torch. Evaluation of output['target_rating']
+            tag - String. 'train' or 'test'
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
+
         for k in result:
             name = '{}/{}'.format(tag, k)
             self.tracker[name] = result[k]
@@ -56,6 +71,21 @@ class Logger:
         return
 
     def write(self, tag, metric_names):
+
+        """
+        return the train/test log and evaluation result
+
+        Parameters:
+            tag - String. 'train' or 'test'
+            metric_names - String. Pre-difinded metric
+
+        Returns:
+            info - String. The train/test log and evaluation result
+
+        Raises:
+            None
+        """
+
         names = ['{}/{}'.format(tag, k) for k in metric_names]
         evaluation_info = []
         for name in names:
