@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+    
 
 
 
@@ -17,8 +18,6 @@
                 "ML100K_user_explicit_ae_1_random-2_constant-0.1_constant_1",
                 "--train_mode",
                 "not private",
-                "--private_decoder_user",
-                "0",
                 "--num_workers",
                 "0",
                 "--init_seed",
@@ -46,11 +45,9 @@
             "program": "${workspaceFolder}/train_privacy_federated.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_1_random-2_constant-0.1_constant_1",
+                "ML100K_user_explicit_ae_0_random-2_constant-0.1_constant_1",
                 "--train_mode",
                 "private",
-                "--private_decoder_user",
-                "943",
                 "--num_workers",
                 "0",
                 "--init_seed",

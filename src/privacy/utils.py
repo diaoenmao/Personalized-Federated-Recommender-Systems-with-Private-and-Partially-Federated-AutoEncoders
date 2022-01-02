@@ -25,12 +25,13 @@ def makedir_exist_ok(path):
             raise
     return
 
-def processed_folder(num, isSingle_model):
+def processed_folder(epoch, isSingle_model):
     root = './federated_privacy/'
+    model_name = cfg['model_name']
     if isSingle_model:
-        root = os.path.join(os.path.expanduser(root), cfg['model_name'], str(cfg['private_decoder_user']), str(num))
+        root = os.path.join(os.path.expanduser(root), cfg['model_name'], str(cfg[model_name]['fraction']), str(cfg[model_name]['local_epoch']), str(epoch))
     else:
-        root = os.path.join(os.path.expanduser(root), cfg['model_name'], str(cfg['private_decoder_user']), 'combine', str(num))
+        root = os.path.join(os.path.expanduser(root), cfg['model_name'], str(cfg[model_name]['fraction']), str(cfg[model_name]['local_epoch']), 'combine', str(epoch))
 
     return root
 
@@ -211,13 +212,19 @@ def process_control():
         batch_size = {'user': {'ML100K': 1, 'ML1M': 1, 'ML10M': 1, 'ML20M': 1, 'NFP': 1},
                     'item': {'ML100K': 1, 'ML1M': 1, 'ML10M': 1, 'ML20M': 1, 'NFP': 1}}
     else:
-        batch_size = {'user': {'ML100K': 50, 'ML1M': 500, 'ML10M': 5000, 'ML20M': 5000, 'NFP': 5000},
-                    'item': {'ML100K': 50, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
+        batch_size = {'user': {'ML100K': 100, 'ML1M': 500, 'ML10M': 5000, 'ML20M': 5000, 'NFP': 5000},
+                    'item': {'ML100K': 100, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
 
     # add parameter to model
     # Example: cfg['model_name']: ae              
     model_name = cfg['model_name']
-    cfg[model_name]['shuffle'] = {'train': False, 'test': False}
+    cfg[model_name]['shuffle'] = {'train': True, 'test': False}
+    if cfg['train_mode'] == 'private':
+        cfg[model_name]['optimizer_name'] = 'SGD'
+    else:
+        cfg[model_name]['optimizer_name'] = 'Adam'
+    cfg[model_name]['fraction'] = 0.1
+    cfg[model_name]['local_epoch'] = 3
     cfg[model_name]['optimizer_name'] = 'Adam'
     cfg[model_name]['lr'] = 1e-3
     cfg[model_name]['momentum'] = 0.9
@@ -231,7 +238,7 @@ def process_control():
 
     # add parameter to local model
     cfg['local'] = {}
-    cfg['local']['shuffle'] = {'train': False, 'test': False}
+    cfg['local']['shuffle'] = {'train': True, 'test': False}
     cfg['local']['optimizer_name'] = 'Adam'
     cfg['local']['lr'] = 1e-3
     cfg['local']['momentum'] = 0.9
@@ -245,7 +252,7 @@ def process_control():
 
     # add parameter to global model
     cfg['global'] = {}
-    cfg['global']['num_epochs'] = 10
+    cfg['global']['num_epochs'] = 20
     # cfg['assist']['optimizer_name'] = 'LBFGS'
     # cfg['assist']['lr'] = 1
     # cfg['assist']['num_epochs'] = 10

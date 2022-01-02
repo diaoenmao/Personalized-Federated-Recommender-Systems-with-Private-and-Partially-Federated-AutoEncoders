@@ -6,7 +6,9 @@
 
 
 
+indptr
 
+Indices
 
 **Privacy-Preserving Multi-Target Multi-Domain Recommender Systems with Assisted AutoEncoders:**
 
@@ -36,6 +38,10 @@ yml:
 
 ​    \# experiment
 
+​	train_mode：private
+
+​	private_decoder_user：50
+
 ​    num_workers: 0
 
 ​    init_seed: 0
@@ -58,7 +64,7 @@ Take **train_recsys_joint.py** as example
 
 1. **Command:**
    
-   1. python train_recsys_joint.py --control_name ML100K_user_implicit_ae_1_random-2_constant-0.1_constant_1 --num_workers 0 --init_seed 0 --num_experiments 1 --log_interval 0.25 --device cpu --world_size 1 --resume_mode 0 --verbose False
+   1. python train_privacy_joint.py --control_name ML100K_user_implicit_ae_1_random-2_constant-0.1_constant_1 --num_workers 0 --init_seed 0 --num_experiments 1 --log_interval 0.25 --device cpu --world_size 1 --resume_mode 0 --verbose False
    2. 修改device: cuda 为 device: cpu, 如果没有gpu
    
 2. **创建解析器**
@@ -93,41 +99,49 @@ Take **train_recsys_joint.py** as example
                
                3. Csr_matrix:
                
-                  1. csr_matrix((data, (row_ind, col_ind)), [shape=(M, N)]) (M*N的矩阵，每个格子都有一个值data[k]，只不过边的定位为(row_ind[k], col_ind[k]) )
+                  1. csr_matrix((data, (row_ind, col_ind)), [shape=(M, N)]) (M*N的矩阵，每个格子都有一个值data[k]，只不过边的定位为(row_ind[k], col_ind[k]) )，就是个二维矩阵带值
                
                      where `data`, `row_ind` and `col_ind` satisfy the relationship `a[row_ind[k], col_ind[k]] = data[k]`.
                
             2. ```make_implicit_data()```
-         
+      
                1. 同make_explicit_data()
-         
+      
             3. ```make_info()```
    
                1. 将区间划分为数字
                1. 借用np.eye生成向量代表数字
                1. ```preprocessing.LabelEncoder().fit_transform()```, 将数据分类，获取代表的值(数字自增)
-         
-         2. ```.tocoo(), csr_matrix()```: 转稀疏矩阵为稠密矩阵, csc和csr有点像多叉树的序列化, 记录孩子的个数
-         
-            1. [coo_matrix](https://blog.csdn.net/The_Time_Runner/article/details/93636589) ：COOrdinate format matrix
-            2. [csc_matrix](https://blog.csdn.net/The_Time_Runner/article/details/93640999) ：Compressed Sparse Column matrix, 记录每列第一个元素在values中出现的位置
-            3. [csr_matrix](https://blog.csdn.net/The_Time_Runner/article/details/93641286) ：Compressed Sparse Row matrix，记录每行第一个元素在values中出现的位置
-            4. Reference: https://www.cnblogs.com/zhangchaoyang/articles/5483453.html
-         
+      
+         2. ```.tocoo(), csr_matrix()```: 转稀疏矩阵为稠密矩阵(row[i],col[i]对应data[i]), csc和csr有点像多叉树的序列化, 记录孩子的个数
+      
+            1. 3种scipy.sparse的压缩方式, https://blog.csdn.net/chao2016/article/details/80344828
+            2. [coo_matrix](https://blog.csdn.net/The_Time_Runner/article/details/93636589) ：COOrdinate format matrix, 一行row, 一行col, 一行data
+            3. [csc_matrix](https://blog.csdn.net/The_Time_Runner/article/details/93640999) ：Compressed Sparse Column matrix, 记录每列第一个元素在values中出现的位置
+            4. [csr_matrix](https://blog.csdn.net/The_Time_Runner/article/details/93641286) ：Compressed Sparse Row matrix，记录每行第一个元素在values中出现的位置，和每行有多少个元素. indices记录哪一列有data. indptr属性记录每行元素是[i:i+1]在indices中，长度== len(data)+1
+            5. Reference: https://www.cnblogs.com/zhangchaoyang/articles/5483453.html
+      
       2. data.py /```make_pair_transform(dataset)```：datasets / datasets_utils.py / ```Compose(object)``` => data.py / Class PairInput(torch) :
-   
+      
          1. 前置知识: 实例化后，将实例当做函数调用会到```__call__()```, 例如a = A(), a() (调用```__call__()```)
          2. 前置知识: 如果class继承pytorch，然后a(params), 会调用```__call__()```, 而后```__call()___```中调用```forward()```, 并把参数传过去
          3. data.py / Class PairInput(torch) / ```forward(input)```: 
          4. 流程: dataset['train'].transform(input) => 在datasets / datasets_utils.py / Compose实例的```__call__()```中遍历 => 遍历的PairInput实例的```__call()__``` => PairInput实例的```forward()```
          4. dataset['train'].transform 会在遍历DataLoader =>```dataset, __getitem()__```时候调用
-   
-      3. data.py /```make_flat_transform(dataset)```：data.py / Class FlatInput(torch) => datasets / datasets_utils.py / ```Compose(object)```:
-   
+      
+      3. data.py /```make_flat_transform(dataset)```：datasets / datasets_utils.py / ```Compose(object)``` =》 data.py / Class FlatInput(torch) :
+      
          1. 基本同```data.py / make_pair_transform(dataset)```
-   
-      4. dataset为dict, 其中dataset['train']和dataset['test']都为movielens.py的某一个class实例
-   
+      
+      4. Class PairInput(torch):
+      
+         1. torch.Tensor有两个实例方法可以用来扩展某维的数据的尺寸，分别是repeat()和expand()
+         2. Torch.tensor.expand()用法:
+            1. 
+         3. Torch.tensor.repeat()用法: 
+      
+      5. dataset为dict, 其中dataset['train']和dataset['test']都为movielens.py的某一个class实例
+      
    3. utils.py / ```process_dataset(dataset)```:
    
       1. hasattr() 函数用于判断对象是否包含对应的属性
@@ -226,12 +240,14 @@ Take **train_recsys_joint.py** as example
                 1. 遍历DataLoader (调用```__iter__()```获取迭代器, ```__next()```遍历)
                 2. 利用index去Sampler实例中取对应的index (```__next_index()```)
                 3. 利用取到的index去Dataset实例中取对应的数据, Dataset实例中```__getitem()__```的调用实例的transform
-                4. transform(input) => 在datasets / datasets_utils.py / Compose实例的```__call__()```中遍历 => 遍历的PairInput实例的```__call()__``` => PairInput实例的```forward()```
+                4. transform(input) => 在datasets / datasets_utils.py / Compose实例的```__call__()```中遍历 => 遍历的实例的```__call()__``` => PairInput实例的```forward()``` (data.py / Class FlatInput(torch))
              3. 图示: https://blog.csdn.net/loveliuzz/article/details/108756253 (总DataLoader流程)
-             4. 更新参数
+             4. utils.py / collate(input):
+                1. 按行拼接每个key的value
+             5. 更新参数
                 1. torch.nn.utils.clip_grad_norm_， 梯度截断: https://blog.csdn.net/weixin_42628991/article/details/114845018, https://pytorch.org/docs/stable/generated/torch.nn.utils.clip_grad_norm_.html
-             5. 记录metric
-             6. 记录详细信息当epoch是某个数的倍数
+             6. 记录metric
+             7. 记录详细信息当epoch是某个数的倍数
 
 
 
@@ -247,10 +263,25 @@ Eval: 内置函数，用于执行一个字符串表达式，并返回表达式�
 
 
 
+repeat什么意思？
+
+View(1,-1)什么意思？
+
 要做的事情:
 
 1. 修改data_loader
+   1. (Done) Batch_size => 1 （cfg['train_mode'] == 'private'）
+   2. (Done) 加入可以控制选取多少个user的parameter (init)
+      1. https://www.codenong.com/50541885/
+
+   3. (Done，shuffle不用管，不影响) 不shuffle，反正都是取1个，训练的时候。
+
 2. 加入federated
+   1. train的时候，在train for loop外建一个torch和decoder 存decoder，和decoder output size相同，每次循环加入新的模型参数
+   2. 最后平均模型参数，将模型存起来
+   3. 在AE class里需要判断某个文件夹路径下有无这个model，有的话就证明跑到了multiple rounds，要取出来这个模型当decoder
+   4. https://blog.csdn.net/weixin_41712499/article/details/110198423
+
 
 
 
@@ -259,12 +290,21 @@ Eval: 内置函数，用于执行一个字符串表达式，并返回表达式�
 1. (done) cfg['num_organizations'] => split dataset 用
 2.  (done) Ar, aw是什么  => assisted 不用考虑
 3. Make_pair_transform() / make_flat_transform() => 在compose中对数据进一步处理
-4. .to(CPU)
-4. 为什么要ae.py / class AE / with torch.no_grad()，好像没什么用
-4. loss对Implicit, explicit不同的原因
+4. .to(CPU) => 
+   1. Load CPU
+   2. Load GPU
 
+5. 为什么要ae.py / class AE / with torch.no_grad()，好像没什么用, ~意思
+6. loss对Implicit, explicit不同的原因
 7. cfg['world_size'] 是什么
+   1. 没啥用
+
 8. movielens.py / make_explicit_data() => 有几行代码没什么用
+   1. 
+
+9. tensor套tensor
+   1. 
+
 
 
 
@@ -272,16 +312,22 @@ Eval: 内置函数，用于执行一个字符串表达式，并返回表达式�
 
 没看的部分:
 
-1. 处理side information没看
+1. (done) 处理side information没看 => 看了
 2. metrics / class Metric中存的RMSE, Accuracy, MAP类没看
 3. utils.py / resume没看
 4. Logger.py / make_logger 没看
 
 
 
+-------
 
 
 
+Privacy
+
+command:
+
+python train_privacy_joint.py --control_name ML100K_user_implicit_ae_1_random-2_constant-0.1_constant_1 --num_workers 0 --init_seed 0 --num_experiments 1 --log_interval 0.25 --device cpu --world_size 1 --resume_mode 0 --verbose False
 
 
 

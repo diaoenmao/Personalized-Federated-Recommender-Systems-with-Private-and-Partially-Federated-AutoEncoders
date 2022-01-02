@@ -1,6 +1,7 @@
 
 from scipy import sparse
 import numpy as np
+from scipy.sparse import csr_matrix
 # import torch
 # a = torch.tensor(np.array([0]), dtype=torch.long)
 # b = torch.tensor(np.array([1]), dtype=torch.long)
@@ -30,8 +31,8 @@ import numpy as np
 # print(b.indices)
 # print(b[0])
 # b.tocoo()
-# # # print(b)
-# user = np.array([3,1,5,5])
+# # print(b)
+# user = np.array([6, 7, 6,7,1,2])
 # user_id, user_inv = np.unique(user, return_inverse=True)
 # print("zz", user_id, user_inv)
 # # item_id, item_inv = np.unique(item, return_inverse=True)
@@ -78,15 +79,22 @@ import numpy as np
 # print(id(d))
 # print(id(e))
 
-x = 5
-print(id(x))
-x -= 1
-print(id(x))
-x = x - 1
-print(id(x))
+# x = 5
+# print(id(x))
+# x -= 1
+# print(id(x))
+# x = x - 1
+# print(id(x))
 
 
 
 
-
+test_user, test_item, test_rating = np.array([1,3,4]), np.array([2,5,8]), np.array([6,7,8])
+test_target = csr_matrix((test_rating, (test_user, test_item)), shape=(5,9))
+print(test_target)
+print("!!", test_target[0])
+print("!!", test_target[1])
+print("!!", test_target[2])
+print("!!", test_target[3])
+print("!!", test_target[4], test_target.shape[0])
 # pickle.dump(input, open(path, 'wb'))

@@ -1,6 +1,7 @@
 import argparse
 import copy
 import datetime
+from numpy import mod
 
 from torch.optim import optimizer
 import models
@@ -11,6 +12,7 @@ import torch
 import copy
 import gc
 import sys
+import math
 import collections
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
@@ -84,14 +86,15 @@ def runExperiment():
     # a = sys.getsizeof(model)
 
     # print("model", model)
-    # model_dict = collections.defaultdict(list)
-    model_list = []
-    for i in range(cfg['private_decoder_user']):
+    model_dict = collections.defaultdict(list)
+    # model_list = []
 
-        # cur_name = 'model_' + str(i)
+    # generate model for all unique user
+    for i in range(cfg['unique_user_num']):
+
+        cur_name = 'model_' + str(i)
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-        # model_dict[cur_name].append(model)
-        
+        model_dict[cur_name].append(model)
         
         # root = processed_folder(i, True)
         # model_path = os.path.join(root, cfg['model_name'] + '.pt')
@@ -106,9 +109,9 @@ def runExperiment():
             optimizer = None
             scheduler = None
         # print(i, id(model), id(optimizer), id(scheduler))
-        # model_dict[cur_name].append(optimizer)
-        # model_dict[cur_name].append(scheduler)
-        model_list.append([model, optimizer, scheduler])
+        model_dict[cur_name].append(optimizer)
+        model_dict[cur_name].append(scheduler)
+        # model_list.append([model, optimizer, scheduler])
 
 
         # optimizer_path = os.path.join(root, cfg['model_name'] + '_optimizer' + '.pt')
@@ -120,6 +123,7 @@ def runExperiment():
         # del optimizer
         # del scheduler
         # gc.collect()
+
 
     if cfg['target_mode'] == 'explicit':
         # metric / class Metric
@@ -175,13 +179,13 @@ def runExperiment():
         # train(data_loader['train'], model, optimizer, metric, logger, epoch, i)
         # test(data_loader['test'], model, metric, logger, epoch, i)
         
-        train(data_loader['train'], model_list, metric, logger, epoch)
-        test(data_loader['test'], model_list, metric, logger, epoch)
+        train(data_loader['train'], model_dict, metric, logger, epoch)
+        test(data_loader['test'], model_dict, metric, logger, epoch)
         
         if scheduler is not None:
-            for i in range(cfg['private_decoder_user']):
-                scheduler = model_list[i][2]
-                scheduler.step()
+            for key in model_dict:
+                model_dict[key][2].step()
+
         # model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
         # if cfg['model_name'] != 'base':
         #     optimizer_state_dict = optimizer.state_dict()
@@ -197,10 +201,13 @@ def runExperiment():
         #     shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
         #                 './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
+    
+    for key in model_dict:
+        a = model_dict[key][0].state_dict()
     return
 
 
-def train(data_loader, model_list, metric, logger, epoch):
+def train(data_loader, model_dict, metric, logger, epoch):
 
     """
     train the model
@@ -229,12 +236,26 @@ def train(data_loader, model_list, metric, logger, epoch):
     # Set the model in training mode
     
     start_time = time.time()
-    server_decoder_model = copy.deepcopy(cfg['Decoder_instance'])
+    global_decoder_model = copy.deepcopy(cfg['Decoder_instance'])
+
+    model_name = cfg['model_name']
+    client_fraction = cfg[model_name]['fraction']
+    client_count = math.floor(cfg['unique_user_num'] * client_fraction)
+    # print('client_count', client_count)
+    cur_client_count = 0
+
     # Iterate data_loader
     for i, input in enumerate(data_loader):
 
-        model = model_list[i][0]
-        optimizer = model_list[i][1]
+        cur_client_count += 1
+        # print('cur_client_count', cur_client_count)
+        if cur_client_count > client_count:
+            break
+        
+        # concatenate model_ and the picked index
+        cur_name = 'model_' + str(input['user'][0][0].item())
+        model = model_dict[cur_name][0]
+        optimizer = model_dict[cur_name][1]
         model.train(True)
 
         # utils.py / collate(input)
@@ -246,29 +267,29 @@ def train(data_loader, model_list, metric, logger, epoch):
             continue
         input = to_device(input, cfg['device'])
         input['epoch'] = epoch
-        # put the input in model => forward() => train Encoder and Decoder and get loss
-        output = model(input)
-        output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
+        
+        for local_epoch in range(cfg[model_name]['local_epoch']):
 
-        # update parameters of model
-        if optimizer is not None:
-            # Zero the gradient
-            optimizer.zero_grad()
-            # Calculate the gradient of each parameter
-            output['loss'].backward()
-            # Clips gradient norm of an iterable of parameters.
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
-            # Perform a step of parameter through gradient descent Update
-            optimizer.step()
+            temp_input = copy.deepcopy(input)
+            # put the input in model => forward() => train Encoder and Decoder and get loss
+            temp_input['cur_local_epoch'] = local_epoch
+            output = model(temp_input)
+            output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
 
-        # named_parameters() returns back list of tuple (generator)
-        for key, value in model.decoder.named_parameters():
-            # state_dict() returns back dictionary
-            server_decoder_model.state_dict()[key] += model.decoder.state_dict()[key]
+            # update parameters of model
+            if optimizer is not None:
+                # Zero the gradient
+                optimizer.zero_grad()
+                # Calculate the gradient of each parameter
+                output['loss'].backward()
+                # Clips gradient norm of an iterable of parameters.
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+                # Perform a step of parameter through gradient descent Update
+                optimizer.step()
 
-        evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+            evaluation = metric.evaluate(metric.metric_name['train'], temp_input, output)
+        
         logger.append(evaluation, 'train', n=input_size)
-
         # Record information when epoch is a multiple of a certain number
         if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
             _time = (time.time() - start_time) / (i + 1)
@@ -277,29 +298,34 @@ def train(data_loader, model_list, metric, logger, epoch):
             exp_finished_time = epoch_finished_time + datetime.timedelta(
                 seconds=round((cfg[cfg['model_name']]['num_epochs'] - epoch) * _time * len(data_loader)))
             info = {'info': ['Model: {},{}'.format(cfg['model_tag'], 'user'+ str(i)),
-                             'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
-                             'Learning rate: {:.6f}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
-                             'Experiment Finished Time: {}'.format(exp_finished_time)]}
+                            'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
+                            'Learning rate: {:.6f}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
+                            'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
 
+        # named_parameters() returns back list of tuple (generator)
+        for key, value in model.decoder.named_parameters():
+            # state_dict() returns back dictionary
+            global_decoder_model.state_dict()[key] += model.decoder.state_dict()[key]
 
     if cfg['train_mode'] == "private":
         for key, value in model.decoder.named_parameters():
-            server_decoder_model.state_dict()[key] /= cfg['private_decoder_user']
+            global_decoder_model.state_dict()[key] /= client_count
 
-    save(server_decoder_model, processed_folder(epoch, False))
-    
+    save(global_decoder_model, processed_folder(epoch, False))
+    cfg['global_decoder_model'] = global_decoder_model
     logger.safe(False)
     return
 
 
-def test(data_loader, model_list, metric, logger, epoch):
+def test(data_loader, model_dict, metric, logger, epoch):
     logger.safe(True)
     with torch.no_grad(): 
         for i, input in enumerate(data_loader):
-
-            model = model_list[i][0]
+            
+            cur_name = 'model_' + str(input['user'][0][0].item())
+            model = model_dict[cur_name][0]
             model.train(False)
 
             input = collate(input)

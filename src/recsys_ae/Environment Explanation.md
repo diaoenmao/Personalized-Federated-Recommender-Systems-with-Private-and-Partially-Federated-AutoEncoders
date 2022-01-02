@@ -10,7 +10,7 @@ Vscode 测试with command, 添加"args", 修改"program":
 
 ​	"args": [
 
-​                "--control_name", "ML100K_user_implicit_ae_random-2_constant-0.1_constant_1",
+​                "--control_name", "ML100K_user_implicit_ae_1_random-2_constant-0.1_constant_1",
 
 ​                "--num_workers", "0",
 

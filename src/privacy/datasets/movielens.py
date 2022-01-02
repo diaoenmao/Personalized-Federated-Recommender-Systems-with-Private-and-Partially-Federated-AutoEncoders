@@ -30,6 +30,8 @@ class ML100K(Dataset):
         item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         self.item_attr = {'data': item_attr, 'target': item_attr}
 
+        cfg['unique_user_num'] = self.data.shape[0]
+
         if self.data_mode == 'user':
             # if cfg['private_decoder_user'] > 0:
             #     # set seed for same random result
@@ -62,6 +64,7 @@ class ML100K(Dataset):
         # Retrieve self.data[index] data
         # 取出用户为Index的数据
         data = self.data[index].tocoo()
+        a = self.target[index]
         target = self.target[index].tocoo()
         if self.data_mode == 'user':
             input = {'user': torch.tensor(np.array([index]), dtype=torch.long),
@@ -169,8 +172,9 @@ class ML100K(Dataset):
         user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
 
         # user_id: all sorted unique user_id
-        # user_inv: The index of (new array[i] in old array[i])
-        # 新列表元素在旧列表中的位置，并以列表形式储存在user_inv中
+        # user_inv: 之前user数组中的元素在user_id中的index
+        # example: user = [6,7,6,7,1,2]
+        # Then user_id = [1,2,6,7], user_inv = [2,3,2,3,0,1]
         user_id, user_inv = np.unique(user, return_inverse=True)
         item_id, item_inv = np.unique(item, return_inverse=True)
         M, N = len(user_id), len(item_id)
@@ -193,6 +197,7 @@ class ML100K(Dataset):
         train_idx, test_idx = idx[:num_train], idx[num_train:]
         train_user, train_item, train_rating = user[train_idx], item[train_idx], rating[train_idx]
         test_user, test_item, test_rating = user[test_idx], item[test_idx], rating[test_idx]
+        a = np.unique(test_user)
         # 快速生成二维矩阵带值
         train_data = csr_matrix((train_rating, (train_user, train_item)), shape=(M, N))
         train_target = train_data

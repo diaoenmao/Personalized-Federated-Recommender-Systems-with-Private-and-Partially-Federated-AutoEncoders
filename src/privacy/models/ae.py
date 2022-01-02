@@ -52,13 +52,15 @@ class Encoder(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        for m in self.blocks:
-            # if item m is nn.Linear, set its value to xavier_uniform heuristic value
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    # set bias to 0
-                    m.bias.data.zero_()
+        if ('Encoder_instance' not in cfg or 'user_profile_Encoder_instance' not in cfg 
+            or 'item_attr_Encoder_instance' not in cfg):
+            for m in self.blocks:
+                # if item m is nn.Linear, set its value to xavier_uniform heuristic value
+                if isinstance(m, nn.Linear):
+                    nn.init.xavier_uniform_(m.weight)
+                    if m.bias is not None:
+                        # set bias to 0
+                        m.bias.data.zero_()
         return
 
     def forward(self, x):
@@ -110,13 +112,14 @@ class Decoder(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        for m in self.blocks:
-            # if item m is nn.Linear, set its value to xavier_uniform heuristic value
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    # set bias to 0
-                    m.bias.data.zero_()
+        if 'Decoder_instance' not in cfg:
+            for m in self.blocks:
+                # if item m is nn.Linear, set its value to xavier_uniform heuristic value
+                if isinstance(m, nn.Linear):
+                    nn.init.xavier_uniform_(m.weight)
+                    if m.bias is not None:
+                        # set bias to 0
+                        m.bias.data.zero_()
         return
 
     def forward(self, x):
@@ -156,6 +159,8 @@ class AE(nn.Module):
             # Initialize Encoder and Decoder
             self.encoder = Encoder(encoder_num_items, encoder_hidden_size)
             self.decoder = Decoder(decoder_num_items, decoder_hidden_size)
+            self.encoder.load_state_dict(copy.deepcopy(cfg['Encoder_instance'].state_dict()))
+            self.decoder.load_state_dict(copy.deepcopy(cfg['Decoder_instance'].state_dict()))
             self.decoder_num_items = decoder_num_items
             self.decoder_hidden_size = decoder_hidden_size
         # elif cfg['data_mode'] == 'item':
@@ -171,8 +176,10 @@ class AE(nn.Module):
         if info_size is not None:
             if 'user_profile' in info_size:
                 self.user_profile = Encoder(info_size['user_profile'], encoder_hidden_size)
+                self.user_profile.load_state_dict(copy.deepcopy(cfg['user_profile_Encoder_instance'].state_dict()))
             if 'item_attr' in info_size:
                 self.item_attr = Encoder(info_size['item_attr'], encoder_hidden_size)
+                self.item_attr.load_state_dict(copy.deepcopy(cfg['item_attr_Encoder_instance'].state_dict()))
 
     def forward(self, input):
         output = {}
@@ -226,17 +233,17 @@ class AE(nn.Module):
         # We need to use federated decoder in the last round
         if 'epoch' in input and input['epoch'] > 1:
      
-            last_epoch_global_decoder = load(processed_folder(input['epoch']-1, False))
-
-            average_parameter = {}
-            for key, value in last_epoch_global_decoder.named_parameters():
-                # state_dict() returns back dictionary
-                average_parameter[key] = copy.deepcopy(last_epoch_global_decoder.state_dict()[key])
-            
-            self.decoder.load_state_dict(average_parameter)
+            # last_epoch_global_decoder = load(processed_folder(input['epoch']-1, False))
+            global_decoder_model = cfg['global_decoder_model']
+            # average_parameter = {}
+            # # for key, value in last_epoch_global_decoder.named_parameters():
+            # #     # state_dict() returns back dictionary
+            # average_parameter[key] = copy.deepcopy(last_epoch_global_decoder.state_dict()[key])
+            self.decoder.load_state_dict(copy.deepcopy(global_decoder_model.state_dict()))
 
         # pass the encoder result to decoder
         # in self.decoder: __call__() => forward()
+        a = self.decoder.state_dict()
         decoded = self.decoder(code)
 
         # handle output
@@ -283,7 +290,14 @@ def ae(encoder_num_users=None, encoder_num_items=None, decoder_num_users=None, d
     info_size = cfg['info_size']
 
     if cfg['data_mode'] == 'user':
-        cfg['Decoder_instance'] = Decoder(decoder_num_items, decoder_hidden_size)
+        if 'Encoder_instance' not in cfg:
+            cfg['Encoder_instance'] = Encoder(encoder_num_items, encoder_hidden_size)
+        if 'Decoder_instance' not in cfg:
+            cfg['Decoder_instance'] = Decoder(decoder_num_items, decoder_hidden_size)
+        if info_size and 'user_profile' in info_size and 'user_profile_Encoder_instance' not in cfg:
+            cfg['user_profile_Encoder_instance'] = Encoder(info_size['user_profile'], encoder_hidden_size)
+        if info_size and 'item_attr' in info_size and 'item_attr_Encoder_instance' not in cfg:
+            cfg['item_attr_Encoder_instance'] = Encoder(info_size['item_attr'], encoder_hidden_size)
 
     model = AE(encoder_num_users, encoder_num_items, decoder_num_users, decoder_num_items, encoder_hidden_size,
                decoder_hidden_size, info_size)

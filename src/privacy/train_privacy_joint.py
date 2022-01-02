@@ -139,6 +139,7 @@ def runExperiment():
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
+    a = model.decoder.state_dict()
     return
 
 def processed_folder(epoch):

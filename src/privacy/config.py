@@ -20,7 +20,6 @@ yml:
         match_rate: 1
     # experiment
     train_mode: private
-    private_decoder_user: 10
     num_workers: 0
     init_seed: 0
     num_experiments: 1
