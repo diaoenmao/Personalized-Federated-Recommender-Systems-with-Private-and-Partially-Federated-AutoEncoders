@@ -189,6 +189,7 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
         if input_size == 0:
             continue
         input = to_device(input, cfg['device'])
+        input['cur_mode'] = 'train'
         # put the input in model => forward() => train Encoder and Decoder and get loss
         output = model(input)
         output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
@@ -235,6 +236,7 @@ def test(data_loader, model, metric, logger, epoch):
             if input_size == 0:
                 continue
             input = to_device(input, cfg['device'])
+            input['cur_mode'] = 'test'
             output = model(input)
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(metric.metric_name['test'], input, output)

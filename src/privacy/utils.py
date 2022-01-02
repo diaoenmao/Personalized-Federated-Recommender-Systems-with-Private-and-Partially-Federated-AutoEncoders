@@ -218,15 +218,23 @@ def process_control():
     # add parameter to model
     # Example: cfg['model_name']: ae              
     model_name = cfg['model_name']
-    cfg[model_name]['shuffle'] = {'train': True, 'test': False}
+    cfg[model_name]['shuffle'] = {'train': True, 'test': True}
     if cfg['train_mode'] == 'private':
         cfg[model_name]['optimizer_name'] = 'SGD'
+        cfg[model_name]['lr'] = 0.1
+        # cfg[model_name]['optimizer_name'] = 'Adam'
+        # cfg[model_name]['lr'] = 1e-3
     else:
-        cfg[model_name]['optimizer_name'] = 'Adam'
-    cfg[model_name]['fraction'] = 0.1
+        cfg[model_name]['optimizer_name'] = 'SGD'
+        cfg[model_name]['lr'] = 0.1
+        # cfg[model_name]['optimizer_name'] = 'Adam'
+        # cfg[model_name]['lr'] = 1e-3
+
+    cfg[model_name]['fraction'] = 1
     cfg[model_name]['local_epoch'] = 3
-    cfg[model_name]['optimizer_name'] = 'Adam'
-    cfg[model_name]['lr'] = 1e-3
+    # cfg[model_name]['optimizer_name'] = 'Adam'
+    # cfg[model_name]['lr'] = 1e-3
+    # cfg[model_name]['lr'] = 0.05
     cfg[model_name]['momentum'] = 0.9
     cfg[model_name]['nesterov'] = True
     cfg[model_name]['betas'] = (0.9, 0.999)
@@ -234,11 +242,11 @@ def process_control():
     cfg[model_name]['scheduler_name'] = 'None'
     cfg[model_name]['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
-    cfg[model_name]['num_epochs'] = 20 if model_name != 'base' else 1
+    cfg[model_name]['num_epochs'] = 50 if model_name != 'base' else 1
 
     # add parameter to local model
     cfg['local'] = {}
-    cfg['local']['shuffle'] = {'train': True, 'test': False}
+    cfg['local']['shuffle'] = {'train': True, 'test': True}
     cfg['local']['optimizer_name'] = 'Adam'
     cfg['local']['lr'] = 1e-3
     cfg['local']['momentum'] = 0.9

@@ -14,6 +14,7 @@ import gc
 import sys
 import math
 import collections
+import torch.nn as nn
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
 from data import fetch_dataset, make_data_loader
@@ -179,7 +180,7 @@ def runExperiment():
         # train(data_loader['train'], model, optimizer, metric, logger, epoch, i)
         # test(data_loader['test'], model, metric, logger, epoch, i)
         
-        train(data_loader['train'], model_dict, metric, logger, epoch)
+        train(data_loader['train'], model_dict, metric, logger, epoch, data_loader['test'])
         test(data_loader['test'], model_dict, metric, logger, epoch)
         
         if scheduler is not None:
@@ -206,8 +207,17 @@ def runExperiment():
         a = model_dict[key][0].state_dict()
     return
 
+def reset_parameters(model):
+    for m in model.blocks:
+        # if item m is nn.Linear, set its value to xavier_uniform heuristic value
+        if isinstance(m, nn.Linear):
+            m.weight.data.zero_()
+            if m.bias is not None:
+                # set bias to 0
+                m.bias.data.zero_()
 
-def train(data_loader, model_dict, metric, logger, epoch):
+
+def train(data_loader, model_dict, metric, logger, epoch, test_data):
 
     """
     train the model
@@ -237,11 +247,14 @@ def train(data_loader, model_dict, metric, logger, epoch):
     
     start_time = time.time()
     global_decoder_model = copy.deepcopy(cfg['Decoder_instance'])
+    reset_parameters(global_decoder_model)
+    global_encoder_model = copy.deepcopy(cfg['Encoder_instance'])
+    reset_parameters(global_encoder_model)
 
     model_name = cfg['model_name']
     client_fraction = cfg[model_name]['fraction']
     client_count = math.floor(cfg['unique_user_num'] * client_fraction)
-    # print('client_count', client_count)
+    print('client_count', client_count)
     cur_client_count = 0
 
     # Iterate data_loader
@@ -266,15 +279,18 @@ def train(data_loader, model_dict, metric, logger, epoch):
         if input_size == 0:
             continue
         input = to_device(input, cfg['device'])
-        input['epoch'] = epoch
+        # input['epoch'] = epoch
         
         for local_epoch in range(cfg[model_name]['local_epoch']):
 
             temp_input = copy.deepcopy(input)
             # put the input in model => forward() => train Encoder and Decoder and get loss
-            temp_input['cur_local_epoch'] = local_epoch
+            # temp_input['cur_local_epoch'] = local_epoch
+            temp_input['cur_mode'] = 'train'
             output = model(temp_input)
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
+
+            # test(test_data, model_dict, metric, logger, epoch)
 
             # update parameters of model
             if optimizer is not None:
@@ -309,12 +325,21 @@ def train(data_loader, model_dict, metric, logger, epoch):
             # state_dict() returns back dictionary
             global_decoder_model.state_dict()[key] += model.decoder.state_dict()[key]
 
+        for key, value in model.encoder.named_parameters():
+            global_encoder_model.state_dict()[key] += model.encoder.state_dict()[key]
+
     if cfg['train_mode'] == "private":
         for key, value in model.decoder.named_parameters():
             global_decoder_model.state_dict()[key] /= client_count
+        
+        if cfg['federated_mode'] == "all":
+            for key, value in model.encoder.named_parameters():
+                global_encoder_model.state_dict()[key] /= client_count
 
     save(global_decoder_model, processed_folder(epoch, False))
+    print('client_count', client_count)
     cfg['global_decoder_model'] = global_decoder_model
+    cfg['global_encoder_model'] = global_encoder_model
     logger.safe(False)
     return
 
@@ -333,6 +358,7 @@ def test(data_loader, model_dict, metric, logger, epoch):
             if input_size == 0:
                 continue
             input = to_device(input, cfg['device'])
+            input['cur_mode'] = 'test'
             output = model(input)
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(metric.metric_name['test'], input, output)

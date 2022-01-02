@@ -46,6 +46,11 @@ def fetch_dataset(data_name, model_name=None, verbose=True):
         dataset['test'] = eval(
             'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
             'target_mode=cfg["target_mode"])'.format(data_name))
+        
+        # for index in range(cfg['unique_user_num']):
+        #     if index in cfg['test_user_unique']:  
+        #         print('train', dataset['train'][index]['target_rating'])
+        #         print('test', dataset['test'][index]['target_rating'])
 
         if model_name in ['base', 'mf', 'gmf', 'mlp', 'nmf']:
             # add transform attribute to corresponding class instance

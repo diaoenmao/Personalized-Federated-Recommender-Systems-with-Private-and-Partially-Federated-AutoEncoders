@@ -25,10 +25,15 @@ class ML100K(Dataset):
             self.process()
         self.data, self.target = load(os.path.join(self.processed_folder, self.target_mode, '{}.pt'.format(self.split)),
                                       mode='pickle')
-        user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
-        self.user_profile = {'data': user_profile, 'target': user_profile}
-        item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
-        self.item_attr = {'data': item_attr, 'target': item_attr}
+        # user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
+        # self.user_profile = {'data': user_profile, 'target': user_profile}
+        # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
+        # self.item_attr = {'data': item_attr, 'target': item_attr}
+        self.user_profile = {}
+        self.item_attr = {}
+
+        self.data = self.data[:400]
+        self.target = self.target[:400]
 
         cfg['unique_user_num'] = self.data.shape[0]
 
@@ -193,10 +198,16 @@ class ML100K(Dataset):
         # item = item_inv
 
         idx = np.random.permutation(user.shape[0])
-        num_train = int(user.shape[0] * 0.9)
+        num_train = int(user.shape[0] * 0.75)
         train_idx, test_idx = idx[:num_train], idx[num_train:]
         train_user, train_item, train_rating = user[train_idx], item[train_idx], rating[train_idx]
         test_user, test_item, test_rating = user[test_idx], item[test_idx], rating[test_idx]
+
+        test_user_unique = {}
+        for item in test_user:
+            test_user_unique[item] = 1
+        cfg['test_user_unique'] = test_user_unique
+
         a = np.unique(test_user)
         # 快速生成二维矩阵带值
         train_data = csr_matrix((train_rating, (train_user, train_item)), shape=(M, N))
