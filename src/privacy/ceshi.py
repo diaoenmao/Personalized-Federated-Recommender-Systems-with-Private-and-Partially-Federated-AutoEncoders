@@ -89,12 +89,22 @@ from scipy.sparse import csr_matrix
 
 
 
-test_user, test_item, test_rating = np.array([1,3,4]), np.array([2,5,8]), np.array([6,7,8])
-test_target = csr_matrix((test_rating, (test_user, test_item)), shape=(5,9))
-print(test_target)
-print("!!", test_target[0])
-print("!!", test_target[1])
-print("!!", test_target[2])
-print("!!", test_target[3])
-print("!!", test_target[4], test_target.shape[0])
+# test_user, test_item, test_rating = np.array([1,3,4]), np.array([2,5,8]), np.array([6,7,8])
+# test_target = csr_matrix((test_rating, (test_user, test_item)), shape=(5,9))
+# print(test_target)
+# print("!!", test_target[0])
+# print("!!", test_target[1])
+# print("!!", test_target[2])
+# print("!!", test_target[3])
+# print("!!", test_target[4], test_target.shape[0])
+import torch
+from torch.utils.data import DataLoader, Dataset
+
+a = torch.tensor(np.array([1,2,3,4,5,6,7,8]))
+
+b = DataLoader(dataset=a, batch_size=2, shuffle=True)
+for i, v in b:
+  print(i)
+  print(v)
+  # print(k)
 # pickle.dump(input, open(path, 'wb'))

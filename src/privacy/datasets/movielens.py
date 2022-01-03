@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import os
+import math
 import torch
 import random
 from torch.utils.data import Dataset
@@ -32,10 +33,11 @@ class ML100K(Dataset):
         self.user_profile = {}
         self.item_attr = {}
 
-        self.data = self.data[:400]
-        self.target = self.target[:400]
+        # self.data = self.data[:100]
+        # self.target = self.target[:100]
 
-        cfg['unique_user_num'] = self.data.shape[0]
+        model_name = cfg['model_name']
+        cfg['unique_user_num'] = math.ceil(self.data.shape[0] / cfg[model_name]['batch_size']['train'])
 
         if self.data_mode == 'user':
             # if cfg['private_decoder_user'] > 0:
@@ -198,7 +200,7 @@ class ML100K(Dataset):
         # item = item_inv
 
         idx = np.random.permutation(user.shape[0])
-        num_train = int(user.shape[0] * 0.75)
+        num_train = int(user.shape[0] * 0.9)
         train_idx, test_idx = idx[:num_train], idx[num_train:]
         train_user, train_item, train_rating = user[train_idx], item[train_idx], rating[train_idx]
         test_user, test_item, test_rating = user[test_idx], item[test_idx], rating[test_idx]

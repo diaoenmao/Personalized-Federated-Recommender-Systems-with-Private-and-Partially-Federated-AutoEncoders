@@ -13,6 +13,7 @@ import copy
 import gc
 import sys
 import math
+import random
 import collections
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
@@ -253,20 +254,38 @@ def train(data_loader, model_dict, metric, logger, epoch, test_data):
 
     model_name = cfg['model_name']
     client_fraction = cfg[model_name]['fraction']
-    client_count = math.floor(cfg['unique_user_num'] * client_fraction)
+    client_count = math.ceil(cfg['unique_user_num'] * client_fraction)
     print('client_count', client_count)
     cur_client_count = 0
 
+    model_name = cfg['model_name']
+    if cfg[model_name]['fraction'] < 1:
+        picked_index = random.sample(range(0, cfg['unique_user_num']), client_count)
+        picked_index_dict = {}
+        for index in picked_index:
+            picked_index_dict[index] = 1
+
+        # print('picked_index', picked_index)
     # Iterate data_loader
     for i, input in enumerate(data_loader):
-
-        cur_client_count += 1
-        # print('cur_client_count', cur_client_count)
-        if cur_client_count > client_count:
-            break
         
+        # if cur_client_count < client_count:
+        #     cur_client_count += 1
+        # else:
+        #     break
+        # print('cur_client_count', cur_client_count)
         # concatenate model_ and the picked index
-        cur_name = 'model_' + str(input['user'][0][0].item())
+        if cfg[model_name]['fraction'] < 1:
+            if i not in picked_index_dict:
+                # print("i", i)
+                continue
+
+        model_name = cfg['model_name']
+        if cfg[model_name]['batch_size']['train'] > 1:
+            cur_name = 'model_' + str(i)
+        else:
+            cur_name = 'model_' + str(input['user'][0][0].item())
+
         model = model_dict[cur_name][0]
         optimizer = model_dict[cur_name][1]
         model.train(True)
@@ -282,7 +301,6 @@ def train(data_loader, model_dict, metric, logger, epoch, test_data):
         # input['epoch'] = epoch
         
         for local_epoch in range(cfg[model_name]['local_epoch']):
-
             temp_input = copy.deepcopy(input)
             # put the input in model => forward() => train Encoder and Decoder and get loss
             # temp_input['cur_local_epoch'] = local_epoch
@@ -349,7 +367,12 @@ def test(data_loader, model_dict, metric, logger, epoch):
     with torch.no_grad(): 
         for i, input in enumerate(data_loader):
             
-            cur_name = 'model_' + str(input['user'][0][0].item())
+            model_name = cfg['model_name']
+            if cfg[model_name]['batch_size']['train'] > 1:
+                cur_name = 'model_' + str(i)
+                # print('cur_name', cur_name)
+            else:
+                cur_name = 'model_' + str(input['user'][0][0].item())
             model = model_dict[cur_name][0]
             model.train(False)
 

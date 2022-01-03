@@ -149,12 +149,12 @@ def make_data_loader(dataset, batch_size=None, shuffle=None, sampler=None):
         if sampler is None:
             data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, shuffle=_shuffle,
                                         pin_memory=_pin_memory, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                        worker_init_fn=np.random.seed(cfg['seed']))
+                                        worker_init_fn=np.random.seed(cfg['seed']), drop_last=True)
         else:
             # if we pass sampler
             data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, sampler=sampler[k],
                                         pin_memory=_pin_memory, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                        worker_init_fn=np.random.seed(cfg['seed']))
+                                        worker_init_fn=np.random.seed(cfg['seed']), drop_last=True)
     return data_loader
 
 
