@@ -126,3 +126,4 @@ res/
 .idea/
 
 federated_decoder/
+federated_privacy/*
