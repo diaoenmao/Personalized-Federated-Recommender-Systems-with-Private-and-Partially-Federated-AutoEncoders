@@ -170,50 +170,26 @@ def process_control():
     cfg['data_mode'] = cfg['control']['data_mode']
     cfg['target_mode'] = cfg['control']['target_mode']
     cfg['model_name'] = cfg['control']['model_name']
+    cfg['num_nodes'] = int(cfg['control']['num_nodes'])
     cfg['info'] = float(cfg['control']['info']) if 'info' in cfg['control'] else 0
 
     # Handle cfg['control']['data_split_mode']
-    # Example: cfg['control']['data_split_mode']: random-2
+    # Example: cfg['control']['data_split_mode']: 'iid'
     if 'data_split_mode' in cfg['control']:
         cfg['data_split_mode'] = cfg['control']['data_split_mode']
-        if 'genre' in cfg['data_split_mode']:
-            if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M']:
-                cfg['num_organizations'] = 18
-            else:
-                raise ValueError('Not valid data name')
-        elif 'random' in cfg['data_split_mode']:
-            cfg['num_organizations'] = int(cfg['data_split_mode'].split('-')[1])
-        else:
-            raise ValueError('Not valid data split mode')
-
-    # cfg['assist'] = {}
-    # if 'ar' in cfg['control']:
-    #     ar_list = cfg['control']['ar'].split('-')
-    #     cfg['assist']['ar_mode'] = ar_list[0]
-    #     cfg['assist']['ar'] = float(ar_list[1])
-    # if 'aw' in cfg['control']:
-    #     cfg['assist']['aw_mode'] = cfg['control']['aw']
-    # if 'match_rate' in cfg['control']:
-    #     cfg['assist']['match_rate'] = float(cfg['control']['match_rate'])
 
     # Add size of layer of encoder and decoder
     cfg['base'] = {}
-    cfg['mf'] = {'hidden_size': 128}
-    cfg['gmf'] = {'hidden_size': 128}
-    cfg['mlp'] = {'hidden_size': [128, 64, 32, 16]}
-    cfg['nmf'] = {'hidden_size': [128, 64, 32, 16]}
     if cfg['train_mode'] == 'private':
-        cfg['ae'] = {'encoder_hidden_size': [64, 32], 'decoder_hidden_size': [32, 64]}
+        cfg['ae'] = {'encoder_hidden_size': [256, 128], 'decoder_hidden_size': [128, 256]}
     else:
         cfg['ae'] = {'encoder_hidden_size': [256, 128], 'decoder_hidden_size': [128, 256]}
 
+    
     # Add batch_size
-    if cfg['train_mode'] == 'private':
-        batch_size = {'user': {'ML100K': 1, 'ML1M': 1, 'ML10M': 1, 'ML20M': 1, 'NFP': 1},
-                    'item': {'ML100K': 1, 'ML1M': 1, 'ML10M': 1, 'ML20M': 1, 'NFP': 1}}
-    else:
-        batch_size = {'user': {'ML100K': 100, 'ML1M': 500, 'ML10M': 5000, 'ML20M': 5000, 'NFP': 5000},
-                    'item': {'ML100K': 100, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
+    
+    batch_size = {'user': {'ML100K': 100, 'ML1M': 500, 'ML10M': 5000, 'ML20M': 5000, 'NFP': 5000},
+                'item': {'ML100K': 100, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
 
     # add parameter to model
     # Example: cfg['model_name']: ae              
@@ -223,9 +199,10 @@ def process_control():
         cfg[model_name]['optimizer_name'] = 'SGD'
         cfg[model_name]['lr'] = 0.1
         cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
-
+        
         # cfg[model_name]['optimizer_name'] = 'Adam'
         # cfg[model_name]['lr'] = 1e-3
+        # cfg[model_name]['scheduler_name'] = 'None'
     else:
         # cfg[model_name]['optimizer_name'] = 'SGD'
         # cfg[model_name]['lr'] = 0.1
@@ -233,20 +210,17 @@ def process_control():
 
         cfg[model_name]['optimizer_name'] = 'Adam'
         cfg[model_name]['lr'] = 1e-3
+        cfg[model_name]['scheduler_name'] = 'None'
 
     cfg[model_name]['fraction'] = 0.1
     cfg[model_name]['local_epoch'] = 5
-    # cfg[model_name]['optimizer_name'] = 'Adam'
-    # cfg[model_name]['lr'] = 1e-3
-    # cfg[model_name]['lr'] = 0.05
     cfg[model_name]['momentum'] = 0.9
     cfg[model_name]['nesterov'] = True
     cfg[model_name]['betas'] = (0.9, 0.999)
     cfg[model_name]['weight_decay'] = 5e-4
-    # cfg[model_name]['scheduler_name'] = 'None'
     cfg[model_name]['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
-    cfg[model_name]['num_epochs'] = 800 if model_name != 'base' else 1
+    cfg[model_name]['num_epochs'] = 800 if cfg['train_mode'] == 'private' else 100
 
     # add parameter to local model
     cfg['local'] = {}
@@ -265,9 +239,7 @@ def process_control():
     # add parameter to global model
     cfg['global'] = {}
     cfg['global']['num_epochs'] = 20
-    # cfg['assist']['optimizer_name'] = 'LBFGS'
-    # cfg['assist']['lr'] = 1
-    # cfg['assist']['num_epochs'] = 10
+
     return
 
 

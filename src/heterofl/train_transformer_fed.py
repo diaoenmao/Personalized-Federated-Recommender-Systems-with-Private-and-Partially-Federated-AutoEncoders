@@ -51,6 +51,7 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(cfg['data_name'], cfg['subset'])
     process_dataset(dataset)
+    # generate global model on cfg['device']
     model = eval('models.{}(model_rate=cfg["global_model_rate"]).to(cfg["device"])'.format(cfg['model_name']))
     optimizer = make_optimizer(model, cfg['lr'])
     scheduler = make_scheduler(optimizer)
@@ -101,6 +102,7 @@ def runExperiment():
 def train(dataset, data_split, label_split, federation, global_model, optimizer, logger, epoch):
     global_model.load_state_dict(federation.global_parameters)
     global_model.train(True)
+    # generate local models
     local, local_parameters, user_idx, param_idx = make_local(dataset, data_split, label_split, federation)
     num_active_users = len(local)
     lr = optimizer.param_groups[0]['lr']

@@ -46,6 +46,7 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(cfg['data_name'], cfg['subset'])
     process_dataset(dataset)
+    # generate global model on cfg['device']
     model = eval('models.{}(model_rate=cfg["global_model_rate"]).to(cfg["device"]).to(cfg["device"])'
                  .format(cfg['model_name']))
     last_epoch, data_split, label_split, model, _, _, _ = resume(model, cfg['model_tag'], load_tag='best', strict=False)

@@ -38,7 +38,7 @@ class ML100K(Dataset):
 
         model_name = cfg['model_name']
         cfg['unique_user_num'] = math.ceil(self.data.shape[0] / cfg[model_name]['batch_size']['train'])
-
+        # print("dd", cfg['unique_user_num'])
         if self.data_mode == 'user':
             # if cfg['private_decoder_user'] > 0:
             #     # set seed for same random result

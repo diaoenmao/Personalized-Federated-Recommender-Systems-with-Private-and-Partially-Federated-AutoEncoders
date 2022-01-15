@@ -65,7 +65,9 @@ def iid(dataset, num_users):
         label = dataset.token
     else:
         raise ValueError('Not valid data name')
+    # num_items: 600, num_users: 100
     num_items = int(len(dataset) / num_users)
+    # idx: 60000
     data_split, idx = {}, list(range(len(dataset)))
     label_split = {}
     for i in range(num_users):
@@ -82,27 +84,41 @@ def non_iid(dataset, num_users, label_split=None):
     shard_per_user = cfg['non-iid-n']
     data_split = {i: [] for i in range(num_users)}
     label_idx_split = {}
+    # 将Label分类: 0,1,2,3,4,5,6,7,8,9
     for i in range(len(label)):
         label_i = label[i].item()
         if label_i not in label_idx_split:
             label_idx_split[label_i] = []
         label_idx_split[label_i].append(i)
+    # 2
+    a = shard_per_user
+    # 100
+    b = num_users
+    # 10 MNIST classes_size
+    c = cfg['classes_size']
     shard_per_class = int(shard_per_user * num_users / cfg['classes_size'])
     for label_i in label_idx_split:
         label_idx = label_idx_split[label_i]
+        # 余的Index
         num_leftover = len(label_idx) % shard_per_class
+        # 余完剩的数，如果label_idx长度大于shard_per_class才有
         leftover = label_idx[-num_leftover:] if num_leftover > 0 else []
+        # 取到余的index防止out of index
         new_label_idx = np.array(label_idx[:-num_leftover]) if num_leftover > 0 else np.array(label_idx)
+        # 分成shard_per_user个数据集
         new_label_idx = new_label_idx.reshape((shard_per_class, -1)).tolist()
+        # 给每个class加点，余的不会超过class数
         for i, leftover_label_idx in enumerate(leftover):
             new_label_idx[i] = np.concatenate([new_label_idx[i], [leftover_label_idx]])
         label_idx_split[label_i] = new_label_idx
+
     if label_split is None:
         label_split = list(range(cfg['classes_size'])) * shard_per_class
         label_split = torch.tensor(label_split)[torch.randperm(len(label_split))].tolist()
         label_split = np.array(label_split).reshape((num_users, -1)).tolist()
         for i in range(len(label_split)):
             label_split[i] = np.unique(label_split[i]).tolist()
+            
     for i in range(num_users):
         for label_i in label_split[i]:
             idx = torch.arange(len(label_idx_split[label_i]))[torch.randperm(len(label_idx_split[label_i]))[0]].item()

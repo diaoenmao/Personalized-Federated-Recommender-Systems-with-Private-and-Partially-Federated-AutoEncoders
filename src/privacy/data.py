@@ -10,6 +10,107 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
 from utils import collate, to_device
 
+def split_dataset(dataset, num_nodes, data_split_mode):
+    data_split = {}
+    if data_split_mode == 'iid':
+        data_split['train'], data_split_info = iid(dataset['train'], num_nodes)
+        data_split['test'], _ = iid(dataset['test'], num_nodes)
+    # elif 'non-iid' in cfg['data_split_mode']:
+    #     data_split['train'], label_split = non_iid(dataset['train'], num_users)
+    #     data_split['test'], _ = non_iid(dataset['test'], num_users, label_split)
+    else:
+        raise ValueError('Not valid data split mode')
+    return data_split, data_split_info
+
+
+def iid(dataset, num_nodes):
+    if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M']:
+        pass
+    else:
+        raise ValueError('Not valid data name')
+    
+    user_per_node = int(cfg['num_users']['data'] / num_nodes)
+    data_split, idx = {}, list(range(cfg['num_users']['data']))
+    data_split_info = collections.defaultdict(dict)
+    
+    for i in range(num_nodes):
+        user_per_node_i = min(len(idx), user_per_node)
+        data_split[i] = torch.tensor(idx)[torch.randperm(len(idx))[:user_per_node_i]].tolist()
+        data_split_info[i]['num_users'] = user_per_node_i
+        data_split_info[i]['num_items'] = cfg['num_items']['data']
+        idx = list(set(idx) - set(data_split[i]))
+    
+    for i in range(len(idx)):
+        data_split[i].append(idx[i])
+        data_split_info[i]['num_users'] += 1
+
+    return data_split, data_split_info
+
+
+# def non_iid(dataset, num_users, label_split=None):
+#     label = np.array(dataset.target)
+#     cfg['non-iid-n'] = int(cfg['data_split_mode'].split('-')[-1])
+#     shard_per_user = cfg['non-iid-n']
+#     data_split = {i: [] for i in range(num_users)}
+
+#     label_idx_split = collections.defaultdict(list)
+#     for i in range(len(label)):
+#         label_i = label[i].item()
+#         label_idx_split[label_i].append(i)
+
+#     shard_per_class = int(shard_per_user * num_users / cfg['classes_size'])
+#     for label_i in label_idx_split:
+#         label_idx = label_idx_split[label_i]
+#         num_leftover = len(label_idx) % shard_per_class
+#         leftover = label_idx[-num_leftover:] if num_leftover > 0 else []
+#         new_label_idx = np.array(label_idx[:-num_leftover]) if num_leftover > 0 else np.array(label_idx)
+#         new_label_idx = new_label_idx.reshape((shard_per_class, -1)).tolist()
+#         for i, leftover_label_idx in enumerate(leftover):
+#             new_label_idx[i] = np.concatenate([new_label_idx[i], [leftover_label_idx]])
+#         label_idx_split[label_i] = new_label_idx
+#     if label_split is None:
+#         label_split = list(range(cfg['classes_size'])) * shard_per_class
+#         label_split = torch.tensor(label_split)[torch.randperm(len(label_split))].tolist()
+#         label_split = np.array(label_split).reshape((num_users, -1)).tolist()
+#         for i in range(len(label_split)):
+#             label_split[i] = np.unique(label_split[i]).tolist()
+#     for i in range(num_users):
+#         for label_i in label_split[i]:
+#             idx = torch.arange(len(label_idx_split[label_i]))[torch.randperm(len(label_idx_split[label_i]))[0]].item()
+#             data_split[i].extend(label_idx_split[label_i].pop(idx))
+#     return data_split, label_split
+
+
+class SplitDataset(Dataset):
+    def __init__(self, dataset, idx):
+        super().__init__()
+        self.dataset = dataset
+        self.idx = idx
+
+    def __len__(self):
+        return len(self.idx)
+
+    def __getitem__(self, index):
+        input = self.dataset[self.idx[index]]
+        return input
+
+
+class BatchDataset(Dataset):
+    def __init__(self, dataset, seq_length):
+        super().__init__()
+        self.dataset = dataset
+        self.seq_length = seq_length
+        self.S = dataset[0]['label'].size(0)
+        self.idx = list(range(0, self.S, seq_length))
+
+    def __len__(self):
+        return len(self.idx)
+
+    def __getitem__(self, index):
+        seq_length = min(self.seq_length, self.S - index)
+        input = {'label': self.dataset[:]['label'][:, self.idx[index]:self.idx[index] + seq_length]}
+        return input
+
 
 def fetch_dataset(data_name, model_name=None, verbose=True):
     import datasets
@@ -115,6 +216,7 @@ def input_collate(batch):
         return default_collate(batch)
 
 
+
 def make_data_loader(dataset, batch_size=None, shuffle=None, sampler=None):
 
     """
@@ -149,12 +251,12 @@ def make_data_loader(dataset, batch_size=None, shuffle=None, sampler=None):
         if sampler is None:
             data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, shuffle=_shuffle,
                                         pin_memory=_pin_memory, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                        worker_init_fn=np.random.seed(cfg['seed']), drop_last=True)
+                                        worker_init_fn=np.random.seed(cfg['seed']))
         else:
             # if we pass sampler
             data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, sampler=sampler[k],
                                         pin_memory=_pin_memory, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                        worker_init_fn=np.random.seed(cfg['seed']), drop_last=True)
+                                        worker_init_fn=np.random.seed(cfg['seed']))
     return data_loader
 
 
@@ -292,79 +394,3 @@ class FlatInput(torch.nn.Module):
             raise ValueError('Not valid data mode')
         return input
 
-
-def split_dataset(dataset):
-    if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'NFP']:
-        if 'genre' in cfg['data_split_mode']:
-            if cfg['data_mode'] == 'user':
-                num_organizations = cfg['num_organizations']
-                item_attr = torch.tensor(dataset['train'].item_attr['data'])
-                zero_mask = torch.tensor(dataset['train'].item_attr['data']).sum(dim=-1) == 0
-                item_attr[zero_mask] = 1
-                all_filled = False
-                while not all_filled:
-                    all_filled = True
-                    data_split = []
-                    data_split_idx = torch.multinomial(item_attr, 1).view(-1).numpy()
-                    for i in range(num_organizations):
-                        data_split_i = np.where(data_split_idx == i)[0]
-                        data_split.append(torch.tensor(data_split_i))
-                        if len(data_split_i) == 0 or len(dataset['train'].data[:, data_split_i].data) == 0 or len(
-                                dataset['test'].data[:, data_split_i].data) == 0 or len(
-                            dataset['train'].target[:, data_split_i].data) == 0 or len(
-                            dataset['test'].target[:, data_split_i].data) == 0:
-                            all_filled = False
-            elif cfg['data_mode'] == 'item':
-                raise NotImplementedError
-            else:
-                raise ValueError('Not valid data mode')
-        elif 'random' in cfg['data_split_mode']:
-            if cfg['data_mode'] == 'user':
-                num_items = dataset['train'].num_items['data']
-                num_organizations = cfg['num_organizations']
-                data_split = list(torch.randperm(num_items).split(num_items // num_organizations))
-                data_split = data_split[:num_organizations - 1] + [torch.cat(data_split[num_organizations - 1:])]
-            # elif cfg['data_mode'] == 'item':
-            #     num_users = dataset['train'].num_users['data']
-            #     num_organizations = cfg['num_organizations']
-            #     data_split = list(torch.randperm(num_users).split(num_users // num_organizations))
-            #     data_split = data_split[:num_organizations - 1] + [torch.cat(data_split[num_organizations - 1:])]
-            else:
-                raise ValueError('Not valid data mode')
-        else:
-            raise ValueError('Not valid data split mode')
-    else:
-        raise ValueError('Not valid data name')
-    return data_split
-
-
-def make_split_dataset(data_split):
-    num_organizations = len(data_split)
-    dataset = []
-    for i in range(num_organizations):
-        data_split_i = data_split[i]
-        dataset_i = fetch_dataset(cfg['data_name'], model_name=cfg['model_name'], verbose=False)
-        for k in dataset_i:
-            dataset_i[k].data = dataset_i[k].data[:, data_split_i]
-            dataset_i[k].target = dataset_i[k].target[:, data_split_i]
-            if cfg['data_mode'] == 'user':
-                if hasattr(dataset_i[k], 'item_attr'):
-                    shape = (-1, dataset_i[k].item_attr['data'][data_split_i].shape[-1])
-                    dataset_i[k].item_attr['data'] = dataset_i[k].item_attr['data'][data_split_i].reshape(shape)
-                    shape = (-1, dataset_i[k].item_attr['target'][data_split_i].shape[-1])
-                    dataset_i[k].item_attr['target'] = dataset_i[k].item_attr['target'][data_split_i].reshape(shape)
-            elif cfg['data_mode'] == 'item':
-                if hasattr(dataset_i[k], 'user_profile'):
-                    shape = (-1, dataset_i[k].user_profile['data'][data_split_i].shape[-1])
-                    dataset_i[k].user_profile['data'] = dataset_i[k].user_profile['data'][data_split_i].reshape(shape)
-                    shape = (-1, dataset_i[k].user_profile['target'][data_split_i].shape[-1])
-                    dataset_i[k].user_profile['target'] = dataset_i[k].user_profile['target'][data_split_i].reshape(
-                        shape)
-            else:
-                raise ValueError('Not valid data mode')
-        if cfg['model_name'] in ['base', 'mf', 'gmf', 'mlp', 'nmf']:
-            dataset_i = make_pair_transform(dataset_i)
-        elif cfg['model_name'] in ['ae']:
-            dataset_i = make_flat_transform(dataset_i)
-        dataset.append(dataset_i)
-    return dataset

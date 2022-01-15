@@ -54,6 +54,7 @@ def runExperiment():
     model = eval('models.{}(model_rate=cfg["global_model_rate"]).to(cfg["device"])'.format(cfg['model_name']))
     optimizer = make_optimizer(model, cfg['lr'])
     scheduler = make_scheduler(optimizer)
+
     if cfg['resume_mode'] == 1:
         last_epoch, data_split, label_split, model, optimizer, scheduler, logger = resume(model, cfg['model_tag'],
                                                                                           optimizer, scheduler)
@@ -69,8 +70,10 @@ def runExperiment():
         current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
         logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
         logger = Logger(logger_path)
+
     if data_split is None:
         data_split, label_split = split_dataset(dataset, cfg['num_users'], cfg['data_split_mode'])
+        
     global_parameters = model.state_dict()
     federation = Federation(global_parameters, cfg['model_rate'], label_split)
     for epoch in range(last_epoch, cfg['num_epochs']['global'] + 1):
@@ -107,6 +110,7 @@ def train(dataset, data_split, label_split, federation, global_model, optimizer,
     start_time = time.time()
     for m in range(num_active_users):
         local_parameters[m] = copy.deepcopy(local[m].train(local_parameters[m], lr, logger))
+
         if m % int((num_active_users * cfg['log_interval']) + 1) == 0:
             local_time = (time.time() - start_time) / (m + 1)
             epoch_finished_time = datetime.timedelta(seconds=local_time * (num_active_users - m - 1))
@@ -121,6 +125,7 @@ def train(dataset, data_split, label_split, federation, global_model, optimizer,
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
             logger.write('train', cfg['metric_name']['train']['Local'])
+            
     federation.combine(local_parameters, param_idx, user_idx)
     global_model.load_state_dict(federation.global_parameters)
     return

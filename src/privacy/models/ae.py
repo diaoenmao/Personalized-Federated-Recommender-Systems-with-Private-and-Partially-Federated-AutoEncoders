@@ -210,23 +210,6 @@ class AE(nn.Module):
             #     rating[item_idx[len(input['item']):], input['target_user']] = input['target_rating']
             #     input['target_rating'] = rating
         
-        
-
-        if cfg['train_mode'] == 'private' and 'cur_mode' in input and input['cur_mode'] == 'train':
-            # When 'global_decoder_model' in cfg, it means we are at round 2 or more.
-            # We need to use federated decoder in the last round.
-            # We need to use federated encoder in the last round if cfg['federated_mode'] == 'all'
-            if 'global_decoder_model' in cfg:
-                # print("555555555555")
-                global_decoder_model = cfg['global_decoder_model']
-                a = global_decoder_model.state_dict()
-                b = self.decoder.state_dict()
-                self.decoder.load_state_dict(copy.deepcopy(global_decoder_model.state_dict()))
-
-                if cfg['federated_mode'] == 'all':
-                    # print("666666666666666")
-                    global_encoder_model = cfg['global_encoder_model']
-                    self.encoder.load_state_dict(copy.deepcopy(global_encoder_model.state_dict()))
 
         # use input['rating'] as input and pass it to self.encoder (Encoder)
         # in self.encoder: __call__() => forward()
@@ -262,14 +245,7 @@ class AE(nn.Module):
         target_mask = ~(input['target_rating'].isnan())
         output['target_rating'], input['target_rating'] = output['target_rating'][target_mask], input['target_rating'][
             target_mask]
-        # print(input['cur_mode'], output['target_rating'])
-        # input['target_rating']
-        
-        # a1 = input['target_rating']
-        # b = output['target_rating']
-        # if 'cur_mode' in input:
-        #     print("output['target_rating']", output['target_rating'])
-        #     print("input['target_rating']", input['target_rating'])
+            
         if 'local' in input and input['local']:
             output['loss'] = F.mse_loss(output['target_rating'], input['target_rating'])
         else:
