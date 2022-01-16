@@ -5,17 +5,16 @@ control:
   data_mode: user
   target_mode: explicit
   model_name: ae
-  info: 0
-  data_split_mode: random-2
-  ar: constant-0.1
-  aw: constant
-  match_rate: 1
+  info: 1
+  data_split_mode: 'iid'
+  num_nodes: 100
 # experiment
+train_mode: private
+federated_mode: decoder
 num_workers: 0
 init_seed: 0
 num_experiments: 1
 log_interval: 0.25
 device: cpu
-world_size: 1
 resume_mode: 0
 verbose: False

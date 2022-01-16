@@ -64,7 +64,8 @@ Take **train_recsys_joint.py** as example
 
 1. **Command:**
    
-   1. python train_privacy_joint.py --control_name ML100K_user_implicit_ae_1_random-2_constant-0.1_constant_1 --num_workers 0 --init_seed 0 --num_experiments 1 --log_interval 0.25 --device cpu --world_size 1 --resume_mode 0 --verbose False
+   1. python train_recsys_joint.py --control_name ML100K_user_explicit_ae_0_random-2_constant-0.1_constant_1 --num_workers 0 --init_seed 0 --num_experiments 1 --log_interval 0.25 --device cpu --world_size 1 --resume_mode 0 --verbose False
+   1. python test_recsys_joint.py --control_name ML100K_user_explicit_ae_0_random-2_constant-0.1_constant_1 --num_workers 0 --init_seed 0 --num_experiments 1 --log_interval 0.25 --device cpu --world_size 1 --resume_mode 0 --verbose False
    2. 修改device: cuda 为 device: cpu, 如果没有gpu
    
 2. **创建解析器**

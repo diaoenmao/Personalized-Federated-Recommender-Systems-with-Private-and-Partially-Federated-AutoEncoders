@@ -7,7 +7,7 @@
 
 
         {
-            "name": "recsys_configuration_file",
+            "name": "ML100K_Joint",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/train_recsys_joint.py",
@@ -16,7 +16,7 @@
                 // "python",
                 // "train_recsys_joint.py",
                 "--control_name",
-                "ML100K_user_implicit_ae_1_random-2_constant-0.1_constant_1",
+                "ML100K_user_explicit_ae_0_random-2_constant-0.1_constant_1",
                 "--num_workers",
                 "0",
                 "--init_seed",

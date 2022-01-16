@@ -130,6 +130,9 @@ def runExperiment():
         train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch)
         info = test(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
         logger.safe(False)
+        # if scheduler is not None:
+        #     for key in model_dict:
+        #         model_dict[key][2].step()
 
         # model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
         # if cfg['model_name'] != 'base':
@@ -145,15 +148,16 @@ def runExperiment():
         #     metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
         #     shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
         #                 './output/model/{}_best.pt'.format(cfg['model_tag']))
-        
-        # result = {'cfg': cfg, 'epoch': epoch + 1, 'model_state_dict': model_state_dict, 'logger': logger}
+
+
         result = {'cfg': cfg, 'epoch': epoch + 1, 'info': info, 'logger': logger}
         save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
         if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
             metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
-        
+
+
         logger.reset()
     logger.safe(False)
     return
@@ -222,6 +226,7 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
 def test(dataset, data_split, data_split_info, federation, metric, logger, epoch):
 
     with torch.no_grad():
+
         for m in range(len(data_split)):
             user_per_node_i = data_split_info[m]['num_users']
             batch_size = {'test': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['test'])}
@@ -248,7 +253,6 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
 
 def make_local(dataset, data_split, data_split_info, federation, metric):
     num_active_nodes = int(np.ceil(cfg[cfg['model_name']]['fraction'] * cfg['num_nodes']))
-    # print('num_active_nodes', num_active_nodes)
     node_idx = torch.arange(cfg['num_nodes'])[torch.randperm(cfg['num_nodes'])[:num_active_nodes]].tolist()
     # local_parameters, param_idx = federation.distribute(node_idx)
     local = [None for _ in range(num_active_nodes)]

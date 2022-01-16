@@ -3,6 +3,7 @@ import errno
 import numpy as np
 import os
 import pickle
+import models
 import torch
 import torch.optim as optim
 from itertools import repeat
@@ -24,15 +25,26 @@ def makedir_exist_ok(path):
             raise
     return
 
+def processed_folder(epoch, isSingle_model):
+    root = './federated_privacy/'
+    model_name = cfg['model_name']
+    if isSingle_model:
+        root = os.path.join(os.path.expanduser(root), cfg['model_name'], str(cfg[model_name]['fraction']), str(cfg[model_name]['local_epoch']), str(epoch))
+    else:
+        root = os.path.join(os.path.expanduser(root), cfg['model_name'], str(cfg[model_name]['fraction']), str(cfg[model_name]['local_epoch']), 'combine', str(epoch))
+
+    return root
 
 def save(input, path, mode='torch'):
     dirname = os.path.dirname(path)
     makedir_exist_ok(dirname)
+
     if mode == 'torch':
         torch.save(input, path)
     elif mode == 'np':
         np.save(path, input, allow_pickle=True)
     elif mode == 'pickle':
+        # serializing object
         pickle.dump(input, open(path, 'wb'))
     else:
         raise ValueError('Not valid save mode')
@@ -45,6 +57,7 @@ def load(path, mode='torch'):
     elif mode == 'np':
         return np.load(path, allow_pickle=True)
     elif mode == 'pickle':
+        # deserializing object
         return pickle.load(open(path, 'rb'))
     else:
         raise ValueError('Not valid save mode')
@@ -107,10 +120,26 @@ def recur(fn, input, *args):
 
 
 def process_dataset(dataset):
+    
+    """
+    Add some key:value to cfg
+
+    Parameters:
+        dataset - Dict. dataset['train'] is the train dataset instance. dataset['test']
+            is the test dataset instance
+
+    Returns:
+        None
+
+    Raises:
+        None
+    
+    """
     cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['test'])}
     cfg['num_users'], cfg['num_items'] = dataset['train'].num_users, dataset['train'].num_items
     if cfg['info'] == 1:
         cfg['info_size'] = {}
+        # hasattr() determines if the object has corresponding attribute
         if hasattr(dataset['train'], 'user_profile'):
             cfg['info_size']['user_profile'] = dataset['train'].user_profile['data'].shape[1]
         if hasattr(dataset['train'], 'item_attr'):
@@ -123,7 +152,9 @@ def process_dataset(dataset):
 def process_control():
     
     """
-    Handle the model parameters and disassemble cfg['control']
+    Since cfg is global variable, dont need to pass parameter
+    1. Disassemble cfg['control']
+    2. Add the model parameters set 
 
     Parameters:
         None
@@ -139,49 +170,64 @@ def process_control():
     cfg['data_mode'] = cfg['control']['data_mode']
     cfg['target_mode'] = cfg['control']['target_mode']
     cfg['model_name'] = cfg['control']['model_name']
+    cfg['num_nodes'] = int(cfg['control']['num_nodes'])
     cfg['info'] = float(cfg['control']['info']) if 'info' in cfg['control'] else 0
+
+    # Handle cfg['control']['data_split_mode']
+    # Example: cfg['control']['data_split_mode']: 'iid'
     if 'data_split_mode' in cfg['control']:
         cfg['data_split_mode'] = cfg['control']['data_split_mode']
-        if 'genre' in cfg['data_split_mode']:
-            if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M']:
-                cfg['num_organizations'] = 18
-            else:
-                raise ValueError('Not valid data name')
-        elif 'random' in cfg['data_split_mode']:
-            cfg['num_organizations'] = int(cfg['data_split_mode'].split('-')[1])
-        else:
-            raise ValueError('Not valid data split mode')
-    cfg['assist'] = {}
-    if 'ar' in cfg['control']:
-        ar_list = cfg['control']['ar'].split('-')
-        cfg['assist']['ar_mode'] = ar_list[0]
-        cfg['assist']['ar'] = float(ar_list[1])
-    if 'aw' in cfg['control']:
-        cfg['assist']['aw_mode'] = cfg['control']['aw']
-    if 'match_rate' in cfg['control']:
-        cfg['assist']['match_rate'] = float(cfg['control']['match_rate'])
+
+    # Add size of layer of encoder and decoder
     cfg['base'] = {}
-    cfg['mf'] = {'hidden_size': 128}
-    cfg['gmf'] = {'hidden_size': 128}
-    cfg['mlp'] = {'hidden_size': [128, 64, 32, 16]}
-    cfg['nmf'] = {'hidden_size': [128, 64, 32, 16]}
-    cfg['ae'] = {'encoder_hidden_size': [256, 128], 'decoder_hidden_size': [128, 256]}
+    if cfg['train_mode'] == 'private':
+        cfg['ae'] = {'encoder_hidden_size': [256, 128], 'decoder_hidden_size': [128, 256]}
+    else:
+        cfg['ae'] = {'encoder_hidden_size': [256, 128], 'decoder_hidden_size': [128, 256]}
+
+    
+    # Add batch_size
+    
     batch_size = {'user': {'ML100K': 100, 'ML1M': 500, 'ML10M': 5000, 'ML20M': 5000, 'NFP': 5000},
-                  'item': {'ML100K': 100, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
+                'item': {'ML100K': 100, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
+
+    # add parameter to model
+    # Example: cfg['model_name']: ae              
     model_name = cfg['model_name']
-    cfg[model_name]['shuffle'] = {'train': True, 'test': False}
-    cfg[model_name]['optimizer_name'] = 'Adam'
-    cfg[model_name]['lr'] = 1e-3
+    cfg[model_name]['shuffle'] = {'train': False, 'test': False}
+    if cfg['train_mode'] == 'private':
+        cfg[model_name]['fraction'] = 0.1
+        if cfg['num_nodes'] == 1:
+            cfg[model_name]['fraction'] = 1
+        # cfg[model_name]['optimizer_name'] = 'SGD'
+        # cfg[model_name]['lr'] = 0.1
+        # cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
+        
+        cfg[model_name]['optimizer_name'] = 'Adam'
+        cfg[model_name]['lr'] = 1e-3
+        cfg[model_name]['scheduler_name'] = 'None'
+    else:
+        cfg[model_name]['fraction'] = 1
+        # cfg[model_name]['optimizer_name'] = 'SGD'
+        # cfg[model_name]['lr'] = 0.1
+        # cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
+
+        cfg[model_name]['optimizer_name'] = 'Adam'
+        cfg[model_name]['lr'] = 1e-3
+        cfg[model_name]['scheduler_name'] = 'None'
+
+    cfg[model_name]['local_epoch'] = 5
     cfg[model_name]['momentum'] = 0.9
     cfg[model_name]['nesterov'] = True
     cfg[model_name]['betas'] = (0.9, 0.999)
     cfg[model_name]['weight_decay'] = 5e-4
-    cfg[model_name]['scheduler_name'] = 'None'
     cfg[model_name]['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
-    cfg[model_name]['num_epochs'] = 20 if model_name != 'base' else 1
+    cfg[model_name]['num_epochs'] = 800 if cfg['train_mode'] == 'private' else 200
+    cfg['smallest'] = float("inf")
+    # add parameter to local model
     cfg['local'] = {}
-    cfg['local']['shuffle'] = {'train': True, 'test': False}
+    cfg['local']['shuffle'] = {'train': False, 'test': False}
     cfg['local']['optimizer_name'] = 'Adam'
     cfg['local']['lr'] = 1e-3
     cfg['local']['momentum'] = 0.9
@@ -192,11 +238,11 @@ def process_control():
     cfg['local']['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
                                   'test': batch_size[cfg['data_mode']][cfg['data_name']]}
     cfg['local']['num_epochs'] = 20
+
+    # add parameter to global model
     cfg['global'] = {}
-    cfg['global']['num_epochs'] = 10
-    cfg['assist']['optimizer_name'] = 'LBFGS'
-    cfg['assist']['lr'] = 1
-    cfg['assist']['num_epochs'] = 10
+    cfg['global']['num_epochs'] = 20
+
     return
 
 
@@ -241,6 +287,22 @@ class Stats(object):
 
 
 def make_optimizer(model, tag):
+
+    """
+    Generate optimizer based on the parameters of model, the name of the model
+    and the optimizer name
+
+    Parameters:
+        model - Object. The instance of model class
+        tag - String. The name of the model
+
+    Returns:
+        optimizer - Object. The instance of corresponding optimizer class
+
+    Raises:
+        None
+    """
+
     if cfg[tag]['optimizer_name'] == 'SGD':
         optimizer = optim.SGD(model.parameters(), lr=cfg[tag]['lr'], momentum=cfg[tag]['momentum'],
                               weight_decay=cfg[tag]['weight_decay'], nesterov=cfg[tag]['nesterov'])
@@ -255,6 +317,22 @@ def make_optimizer(model, tag):
 
 
 def make_scheduler(optimizer, tag):
+
+    """
+    Generate scheduler based on the optimizer, the name of the model
+    and the scduler name. Scheduler would adjust the learning rate of optimizer.
+
+    Parameters:
+        optimizer - Object. The instance of optimizer class
+        tag - String. The name of the model
+
+    Returns:j
+        scheduler - Object. The instance of corresponding scheduler class
+
+    Raises:
+        None
+    """
+
     if cfg[tag]['scheduler_name'] == 'None':
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[65535])
     elif cfg[tag]['scheduler_name'] == 'StepLR':
@@ -295,6 +373,22 @@ def resume(model_tag, load_tag='checkpoint', verbose=True):
 
 
 def collate(input):
+
+    """
+    for every key:value pair in input, concatenate the value(torch.tensor) (按行)
+
+    Parameters:
+        input - Dict. Input is the batch_size data that has been processed by 
+            input_collate(batch), which is in data.py / input_collate(batch)
+
+    Returns:
+        input - Dict. Processed input dict. Since we have 1 dimension data in sub item.
+            The final value of each key would be 1 long tensor, such as 8200 length. 
+
+    Raises:
+        None
+    """
+
     for k in input:
         input[k] = torch.cat(input[k], 0)
     return input

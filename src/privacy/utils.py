@@ -196,6 +196,9 @@ def process_control():
     model_name = cfg['model_name']
     cfg[model_name]['shuffle'] = {'train': False, 'test': False}
     if cfg['train_mode'] == 'private':
+        cfg[model_name]['fraction'] = 0.1
+        if cfg['num_nodes'] == 1:
+            cfg[model_name]['fraction'] = 1
         cfg[model_name]['optimizer_name'] = 'SGD'
         cfg[model_name]['lr'] = 0.1
         cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
@@ -204,6 +207,7 @@ def process_control():
         # cfg[model_name]['lr'] = 1e-3
         # cfg[model_name]['scheduler_name'] = 'None'
     else:
+        cfg[model_name]['fraction'] = 1
         # cfg[model_name]['optimizer_name'] = 'SGD'
         # cfg[model_name]['lr'] = 0.1
         # cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
@@ -212,7 +216,6 @@ def process_control():
         cfg[model_name]['lr'] = 1e-3
         cfg[model_name]['scheduler_name'] = 'None'
 
-    cfg[model_name]['fraction'] = 0.1
     cfg[model_name]['local_epoch'] = 5
     cfg[model_name]['momentum'] = 0.9
     cfg[model_name]['nesterov'] = True
@@ -220,8 +223,8 @@ def process_control():
     cfg[model_name]['weight_decay'] = 5e-4
     cfg[model_name]['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
-    cfg[model_name]['num_epochs'] = 800 if cfg['train_mode'] == 'private' else 100
-
+    cfg[model_name]['num_epochs'] = 800 if cfg['train_mode'] == 'private' else 200
+    cfg['smallest'] = float("inf")
     # add parameter to local model
     cfg['local'] = {}
     cfg['local']['shuffle'] = {'train': False, 'test': False}
