@@ -222,6 +222,12 @@ def process_control():
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
     cfg[model_name]['num_epochs'] = 800 if cfg['train_mode'] == 'private' else 400
     # add parameter to local model
+    cfg['global'] = {}
+    cfg['global']['lr'] = 0.9
+    cfg['global']['momentum'] = 0.9
+    cfg['global']['nesterov'] = True
+    cfg['global']['weight_decay'] = 5e-4
+    cfg['global']['optimizer_name'] = 'SGD'
     # cfg['local'] = {}
     # cfg['local']['shuffle'] = {'train': False, 'test': False}
     # cfg['local']['optimizer_name'] = 'Adam'
@@ -236,8 +242,8 @@ def process_control():
     # cfg['local']['num_epochs'] = 20
 
     # add parameter to global model
-    cfg['global'] = {}
-    cfg['global']['num_epochs'] = 20
+    # cfg['global'] = {}
+    # cfg['global']['num_epochs'] = 20
 
     return
 

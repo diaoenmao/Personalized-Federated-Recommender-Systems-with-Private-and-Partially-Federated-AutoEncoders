@@ -19,6 +19,7 @@ class Federation:
         self.local_model_dict = collections.defaultdict(dict)
         self.local_test_model_dict = collections.defaultdict(dict)
         self.global_model = None
+        self.new_global_model_parameter_dict = collections.defaultdict(int)
         self.batch_normalization_name = {}
         # self.batch_normalization_name = {'encoder.blocks.1.weight', 'encoder.blocks.1.bias', 'encoder.blocks.4.weight', 'encoder.blocks.4.bias'}
         
@@ -111,7 +112,7 @@ class Federation:
         return
 
 
-    def combine_and_update_global_parameters(self, node_idx, participated_user):
+    def combine(self, node_idx, participated_user):
         
         if cfg['model_name'] == 'ae':
             total_participated_user = sum(participated_user)
@@ -130,7 +131,10 @@ class Federation:
                             cur_node_index = node_idx[m]
                             cur_local_model = self.load_local_model_dict(cur_node_index)['model'].state_dict()
                             cur_ratio = participated_user[m] / total_participated_user
-                            self.global_model.state_dict()[key] += (cur_ratio * copy.deepcopy(cur_local_model[key]))                
+                            # self.global_model.state_dict()[key] += (cur_ratio * copy.deepcopy(cur_local_model[key]))
+                            # if key not in self.new_global_model_parameter_dict:
+                            #     self.new_global_model_parameter_dict[key] = 0
+                            self.new_global_model_parameter_dict[key] += (cur_ratio * copy.deepcopy(cur_local_model[key]))
         else:   
             raise ValueError('Not valid model name')
         return
@@ -158,6 +162,58 @@ class Federation:
 
         return
 
+    # def update_global_model(self, client):
+    #     with torch.no_grad():
+    #         valid_client = [client[i] for i in range(len(client)) if client[i].active]
+    #         if len(valid_client) > 0:
+    #             model = eval('models.{}()'.format(cfg['model_name']))
+    #             model.load_state_dict(self.model_state_dict)
+    #             global_optimizer = make_optimizer(model, 'global')
+    #             global_optimizer.load_state_dict(self.global_optimizer_state_dict)
+    #             global_optimizer.zero_grad()
+    #             weight = torch.ones(len(valid_client))
+    #             weight = weight / weight.sum()
+    #             for k, v in model.named_parameters():
+    #                 parameter_type = k.split('.')[-1]
+    #                 if 'weight' in parameter_type or 'bias' in parameter_type:
+    #                     tmp_v = v.data.new_zeros(v.size())
+    #                     for m in range(len(valid_client)):
+    #                         tmp_v += weight[m] * valid_client[m].model_state_dict[k]
+    #                     v.grad = (v.data - tmp_v).detach()
+    #             global_optimizer.step()
+    #             self.global_optimizer_state_dict = global_optimizer.state_dict()
+    #             self.model_state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
+    #         for i in range(len(client)):
+    #             client[i].active = False
+    #     return
+
+    def update_global_model_momentum(self, node_idx, participated_user):
+        with torch.no_grad():
+            
+            total_participated_user = sum(participated_user)
+            if len(node_idx) > 0:
+                global_optimizer = make_optimizer(self.global_model, 'global')
+                global_optimizer.zero_grad()
+                for k, v in self.global_model.named_parameters():
+                    parameter_type = k.split('.')[-1]
+                    if 'weight' in parameter_type or 'bias' in parameter_type:
+                        tmp_v = v.data.new_zeros(v.size())
+                        for m in range(len(node_idx)):
+                            cur_node_index = node_idx[m]
+                            cur_model = self.local_model_dict[cur_node_index]['model']
+                            cur_ratio = participated_user[m] / total_participated_user
+                            tmp_v += cur_ratio * cur_model.state_dict()[k]
+                            # a = v.data
+                        v.grad = (v.data - tmp_v).detach()
+                        b = v.grad
+                global_optimizer.step()
+                # self.global_optimizer_state_dict = global_optimizer.state_dict()
+        return
+    
+    def update_global_model_parameters(self):
+        self.global_model.load_state_dict(copy.deepcopy(self.new_global_model_parameter_dict))
+        self.new_global_model_parameter_dict = collections.defaultdict(int)
+        return
     # def update_local_model_dict(self):
     #     if cfg['model_name'] == 'ae':
     #         if cfg['train_mode'] == 'private':

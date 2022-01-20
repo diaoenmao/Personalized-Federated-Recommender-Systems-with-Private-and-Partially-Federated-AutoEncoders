@@ -126,7 +126,9 @@ def runExperiment():
     # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
-        train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch)
+        node_idx, participated_user = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch)
+        federation.update_global_model_momentum(node_idx, participated_user)
+        federation.update_global_model_parameters()
         federation.update_local_test_model_dict()
         info = test(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
         logger.safe(False)
@@ -211,9 +213,9 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
             
-    federation.combine_and_update_global_parameters(node_idx, participated_user)
+    federation.combine(node_idx, participated_user)
 
-    return
+    return node_idx, participated_user
 
 
 def test(dataset, data_split, data_split_info, federation, metric, logger, epoch):
