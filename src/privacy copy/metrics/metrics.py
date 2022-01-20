@@ -103,7 +103,7 @@ class Metric(object):
             elif cfg['target_mode'] == 'implicit':
                 pivot = -float('inf')
                 pivot_direction = 'up'
-                pivot_name = 'Accuracy'
+                pivot_name = 'MAP'
             else:
                 raise ValueError('Not valid target mode')
         else:

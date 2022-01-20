@@ -32,16 +32,22 @@ class Encoder(nn.Module):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
+        blocks = []
 
         # Put the input and the first layer into blocks(list).
         # Put the nn.Tanh(), which is an activation function, into the blocks
-        blocks = [nn.Linear(input_size, hidden_size[0]),
-                  nn.Tanh()]
+       
+        blocks.append(nn.Linear(input_size, hidden_size[0]))
+        # blocks.append(nn.LayerNorm(hidden_size[0]))
+        # blocks.append(nn.BatchNorm1d(hidden_size[0]))
+        blocks.append(nn.Tanh())
         
         # Put the rest layers in hidden_size and activation function into the blocks
         # Set range to len(hidden_size)-1 to avoid overflow of index
         for i in range(len(hidden_size) - 1):
+            # blocks.append(nn.LayerNorm(hidden_size[i]))
             blocks.append(nn.Linear(hidden_size[i], hidden_size[i + 1]))
+            # blocks.append(nn.LayerNorm(hidden_size[i + 1]))
             blocks.append(nn.Tanh())
         
         # nn.Sequential: A sequential container. 
@@ -97,12 +103,16 @@ class Decoder(nn.Module):
 
         # Put the layers in hidden_size and activation function into the blocks
         # Set range to len(hidden_size)-1 to avoid overflow of index
+        # blocks.append(nn.LayerNorm(hidden_size[0]))
         for i in range(len(hidden_size) - 1):
+            # blocks.append(nn.LayerNorm(hidden_size[i]))
             blocks.append(nn.Linear(hidden_size[i], hidden_size[i + 1]))
+            # blocks.append(nn.LayerNorm(hidden_size[i + 1]))
             blocks.append(nn.Tanh())
         
         # Put the last layer and the output into blocks(list).
         # Put the nn.Tanh(), which is an activation function, into the blocks
+        # blocks.append(nn.LayerNorm(hidden_size[-1]))
         blocks.append(nn.Linear(hidden_size[-1], output_size))
 
         # nn.Sequential: A sequential container. 

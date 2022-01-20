@@ -36,9 +36,6 @@ class ML100K(Dataset):
         # self.data = self.data[:100]
         # self.target = self.target[:100]
 
-        model_name = cfg['model_name']
-        cfg['unique_user_num'] = math.ceil(self.data.shape[0] / cfg[model_name]['batch_size']['train'])
-        # print("dd", cfg['unique_user_num'])
         if self.data_mode == 'user':
             # if cfg['private_decoder_user'] > 0:
             #     # set seed for same random result
@@ -205,12 +202,12 @@ class ML100K(Dataset):
         train_user, train_item, train_rating = user[train_idx], item[train_idx], rating[train_idx]
         test_user, test_item, test_rating = user[test_idx], item[test_idx], rating[test_idx]
 
-        test_user_unique = {}
-        for item in test_user:
-            test_user_unique[item] = 1
-        cfg['test_user_unique'] = test_user_unique
+        # test_user_unique = {}
+        # for item in test_user:
+        #     test_user_unique[item] = 1
+        # cfg['test_user_unique'] = test_user_unique
 
-        a = np.unique(test_user)
+        # a = np.unique(test_user)
         # 快速生成二维矩阵带值
         train_data = csr_matrix((train_rating, (train_user, train_item)), shape=(M, N))
         train_target = train_data

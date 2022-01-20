@@ -196,48 +196,44 @@ def process_control():
     model_name = cfg['model_name']
     cfg[model_name]['shuffle'] = {'train': False, 'test': False}
     if cfg['train_mode'] == 'private':
-        cfg[model_name]['fraction'] = 0.1
         if cfg['num_nodes'] == 1:
             cfg[model_name]['fraction'] = 1
-        cfg[model_name]['optimizer_name'] = 'SGD'
-        cfg[model_name]['lr'] = 0.1
-        cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
-        
-        # cfg[model_name]['optimizer_name'] = 'Adam'
-        # cfg[model_name]['lr'] = 1e-3
-        # cfg[model_name]['scheduler_name'] = 'None'
+            cfg[model_name]['local_epoch'] = 1
+            cfg[model_name]['optimizer_name'] = 'Adam'
+            cfg[model_name]['lr'] = 1e-3
+            cfg[model_name]['scheduler_name'] = 'None'
+        else:
+            cfg[model_name]['local_epoch'] = 5
+            cfg[model_name]['fraction'] = 0.2
+            cfg[model_name]['optimizer_name'] = 'SGD'
+            cfg[model_name]['lr'] = 0.15
+            cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
     else:
         cfg[model_name]['fraction'] = 1
-        # cfg[model_name]['optimizer_name'] = 'SGD'
-        # cfg[model_name]['lr'] = 0.1
-        # cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
-
         cfg[model_name]['optimizer_name'] = 'Adam'
         cfg[model_name]['lr'] = 1e-3
         cfg[model_name]['scheduler_name'] = 'None'
 
-    cfg[model_name]['local_epoch'] = 5
     cfg[model_name]['momentum'] = 0.9
     cfg[model_name]['nesterov'] = True
     cfg[model_name]['betas'] = (0.9, 0.999)
     cfg[model_name]['weight_decay'] = 5e-4
     cfg[model_name]['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
-    cfg[model_name]['num_epochs'] = 800 if cfg['train_mode'] == 'private' else 200
-    cfg['smallest'] = float("inf")
+    cfg[model_name]['num_epochs'] = 800 if cfg['train_mode'] == 'private' else 400
     # add parameter to local model
-    cfg['local'] = {}
-    cfg['local']['shuffle'] = {'train': False, 'test': False}
-    cfg['local']['optimizer_name'] = 'Adam'
-    cfg['local']['lr'] = 1e-3
-    cfg['local']['momentum'] = 0.9
-    cfg['local']['nesterov'] = True
-    cfg['local']['betas'] = (0.9, 0.999)
-    cfg['local']['weight_decay'] = 5e-4
-    cfg['local']['scheduler_name'] = 'None'
-    cfg['local']['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
-                                  'test': batch_size[cfg['data_mode']][cfg['data_name']]}
-    cfg['local']['num_epochs'] = 20
+    # cfg['local'] = {}
+    # cfg['local']['shuffle'] = {'train': False, 'test': False}
+    # cfg['local']['optimizer_name'] = 'Adam'
+    # cfg['local']['lr'] = 1e-3
+    # cfg['local']['momentum'] = 0.9
+    # cfg['local']['nesterov'] = True
+    # cfg['local']['betas'] = (0.9, 0.999)
+    # cfg['local']['weight_decay'] = 5e-4
+    # cfg['local']['scheduler_name'] = 'None'
+    # cfg['local']['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
+    #                               'test': batch_size[cfg['data_mode']][cfg['data_name']]}
+    # cfg['local']['num_epochs'] = 20
 
     # add parameter to global model
     cfg['global'] = {}

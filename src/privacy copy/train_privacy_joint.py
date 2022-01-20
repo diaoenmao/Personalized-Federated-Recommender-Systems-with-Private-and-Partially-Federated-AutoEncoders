@@ -95,7 +95,7 @@ def runExperiment():
         # metric / class Metric
         # return the instance of Metric, which contains function and initial information
         #   we need for measuring the result
-        metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
+        metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy', 'MAP']})
     else:
         raise ValueError('Not valid target mode')
     

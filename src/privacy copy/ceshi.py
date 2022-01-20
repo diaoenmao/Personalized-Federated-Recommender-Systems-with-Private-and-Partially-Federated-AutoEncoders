@@ -148,8 +148,35 @@ import json
 # output = hashlib.sha256(str(input).encode('utf-8'))
 # output = output.hexdigest()
 # print(output)
-import torch
-v = torch.arange(5)
-b = v.new_zeros(v.size(), dtype=torch.float32)
 
-print(v, b, id(v), id(b))
+# def update(self, client):
+#     with torch.no_grad():
+#         valid_client = [client[i] for i in range(len(client)) if client[i].active]
+#         if len(valid_client) > 0:
+#             model = eval('models.{}()'.format(cfg['model_name']))
+#             model.load_state_dict(self.model_state_dict)
+#             global_optimizer = make_optimizer(model, 'global')
+#             global_optimizer.load_state_dict(self.global_optimizer_state_dict)
+#             global_optimizer.zero_grad()
+#             weight = torch.ones(len(valid_client))
+#             weight = weight / weight.sum()
+#             for k, v in model.named_parameters():
+#                 parameter_type = k.split('.')[-1]
+#                 if 'weight' in parameter_type or 'bias' in parameter_type:
+#                     tmp_v = v.data.new_zeros(v.size())
+#                     for m in range(len(valid_client)):
+#                         tmp_v += weight[m] * valid_client[m].model_state_dict[k]
+#                     v.grad = (v.data - tmp_v).detach()
+#             global_optimizer.step()
+#             self.global_optimizer_state_dict = global_optimizer.state_dict()
+#             self.model_state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
+#         for i in range(len(client)):
+#             client[i].active = False
+#     return
+import collections
+a = collections.deque()
+
+a.append(2)
+a.append(1)
+b = sorted(a)
+print(b)
