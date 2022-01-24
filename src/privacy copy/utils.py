@@ -203,8 +203,8 @@ def process_control():
             cfg[model_name]['lr'] = 1e-3
             cfg[model_name]['scheduler_name'] = 'None'
         else:
-            cfg[model_name]['local_epoch'] = 5
-            cfg[model_name]['fraction'] = 0.2
+            cfg[model_name]['local_epoch'] = 10
+            cfg[model_name]['fraction'] = 0.1
             cfg[model_name]['optimizer_name'] = 'SGD'
             cfg[model_name]['lr'] = 0.1
             cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
@@ -220,8 +220,14 @@ def process_control():
     cfg[model_name]['weight_decay'] = 5e-4
     cfg[model_name]['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
-    cfg[model_name]['num_epochs'] = 800 if cfg['train_mode'] == 'private' else 400
+    cfg[model_name]['num_epochs'] = 400 if cfg['train_mode'] == 'private' else 400
     # add parameter to local model
+    cfg['global'] = {}
+    cfg['global']['lr'] = 1
+    cfg['global']['momentum'] = 0
+    cfg['global']['nesterov'] = False
+    cfg['global']['weight_decay'] = 0
+    cfg['global']['optimizer_name'] = 'SGD'
     # cfg['local'] = {}
     # cfg['local']['shuffle'] = {'train': False, 'test': False}
     # cfg['local']['optimizer_name'] = 'Adam'
@@ -236,8 +242,8 @@ def process_control():
     # cfg['local']['num_epochs'] = 20
 
     # add parameter to global model
-    cfg['global'] = {}
-    cfg['global']['num_epochs'] = 20
+    # cfg['global'] = {}
+    # cfg['global']['num_epochs'] = 20
 
     return
 

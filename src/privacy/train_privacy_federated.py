@@ -126,9 +126,9 @@ def runExperiment():
     # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
-        node_idx, participated_user = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch)
-        federation.update_global_model_momentum(node_idx, participated_user)
-        federation.update_global_model_parameters()
+        node_idx = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch)
+        federation.update_global_model_momentum(node_idx)
+        # federation.update_global_model_parameters()
         federation.update_local_test_model_dict()
         info = test(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
         logger.safe(False)
@@ -187,13 +187,13 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
         None
     """
 
-    local, node_idx, participated_user = make_local(dataset, data_split, data_split_info, federation, metric)
+    local, node_idx = make_local(dataset, data_split, data_split_info, federation, metric)
    
     num_active_nodes = len(node_idx)
-    local_parameters = []
+    local_parameters = {}
     start_time = time.time()
     for m in range(num_active_nodes):
-        local[m].train(logger)
+        local_parameters[m] =  copy.deepcopy(local[m].train(logger))
 
         # cur_node_index = node_idx[m]
         # cur_local_model_dict = federation.load_local_model_dict(cur_node_index)
@@ -213,20 +213,31 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
             
-    federation.combine(node_idx, participated_user)
+    federation.combine(local_parameters, node_idx)
 
-    return node_idx, participated_user
+    return node_idx
 
 
 def test(dataset, data_split, data_split_info, federation, metric, logger, epoch):
 
     with torch.no_grad():
         for m in range(len(data_split)):
+            cur_num_users = data_split_info[m]['num_users']
+            cur_num_items = data_split_info[m]['num_items']
+            if cfg['federated_mode'] == 'all':
+            
+            elif cfg['federated_mode'] == 'decoder':
+            model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
+                    'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items)'.format(cfg['model_name']))
+            model.load_state_dict(copy.deepcopy(federation.load_local_test_model_parameters(m)['federated']))
+            model.to(cfg['device'])
+            model.train(False)
+
             user_per_node_i = data_split_info[m]['num_users']
             batch_size = {'test': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['test'])}
             data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
-            model = federation.load_local_test_model_dict(m)['model']
-            model.train(False)
+            # model = federation.load_local_test_model_dict(m)['model']
+            # model.train(False)
             for i, original_input in enumerate(data_loader):
                 input = copy.deepcopy(original_input)
                 input = collate(input)
@@ -252,33 +263,41 @@ def make_local(dataset, data_split, data_split_info, federation, metric):
     node_idx = torch.arange(cfg['num_nodes'])[torch.randperm(cfg['num_nodes'])[:num_active_nodes]].tolist()
     # local_parameters, param_idx = federation.distribute(node_idx)
     local = [None for _ in range(num_active_nodes)]
-    participated_user = []
+    # participated_user = []
     for m in range(num_active_nodes):
         # model_rate_m = federation.model_rate[node_idx[m]]
         cur_node_index = node_idx[m]
         user_per_node_i = data_split_info[cur_node_index]['num_users']
-        participated_user.append(user_per_node_i)
+        # participated_user.append(user_per_node_i)
         batch_size = {'train': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['train'])}
         data_loader_m = make_data_loader({'train': SplitDataset(dataset, 
             data_split[cur_node_index])}, batch_size)['train']
 
         federation.update_client_parameters_with_global_parameters(cur_node_index)
-        local[m] = Local(data_loader_m, federation.load_local_model_dict(cur_node_index), metric)
-    return local, node_idx, participated_user
+        local[m] = Local(data_loader_m, federation.load_local_model_parameters(cur_node_index), data_split_info[cur_node_index], metric)
+    return local, node_idx
 
 
 class Local:
-    def __init__(self, data_loader, local_model_dict, metric):
+    def __init__(self, data_loader, local_model_parameters, data_split_info, metric):
         self.data_loader = data_loader
-        self.local_model_dict = local_model_dict
+        self.local_model_parameters = local_model_parameters
+        self.data_split_info = data_split_info
         self.metric = metric
 
     def train(self, logger):
-
-        model = self.local_model_dict['model']
+        cur_num_users = self.data_split_info['num_users']
+        cur_num_items = self.data_split_info['num_items']
+        model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
+                'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items)'.format(cfg['model_name']))
+        model.load_state_dict(copy.deepcopy(self.local_model_parameters['federated']))
+        model.to(cfg['device'])
         model.train(True)
-        optimizer = self.local_model_dict['optimizer']
-        scheduler = self.local_model_dict['scheduler']
+
+        optimizer = make_optimizer(model, cfg['model_name'])
+        # model = self.local_model_dict['model']
+        # optimizer = self.local_model_dict['optimizer']
+        # scheduler = self.local_model_dict['scheduler']
        
         model_name = cfg['model_name']
         for local_epoch in range(1, cfg[model_name]['local_epoch'] + 1):
@@ -305,13 +324,13 @@ class Local:
 
                 # if scheduler is not None and local_epoch == cfg[model_name]['local_epoch']:
                 #     scheduler.step()
-                if scheduler is not None:
-                    scheduler.step()
+                # if scheduler is not None:
+                #     scheduler.step()
 
                 evaluation = self.metric.evaluate(self.metric.metric_name['train'], input, output)
                 logger.append(evaluation, 'train', n=input_size)
-        # local_parameters = model.state_dict()
-        # return local_parameters
+        local_parameters = model.to('cpu').state_dict()
+        return local_parameters
 
 
 if __name__ == "__main__":

@@ -5,14 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {   
-            "name": "Train 100K Joint",
+            "name": "Train 1M Joint",
             "type": "python",
             "request": "launch",
             "console": "integratedTerminal",
             "program": "${workspaceFolder}/train_privacy_joint.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_0_iid_1",
+                "ML1M_user_explicit_ae_0_iid_1",
                 "--train_mode",
                 "not private",
                 "--federated_mode",
@@ -34,14 +34,14 @@
             ],
         },
         {   
-            "name": "Test 100K Joint",
+            "name": "Test 1M Joint",
             "type": "python",
             "request": "launch",
             "console": "integratedTerminal",
             "program": "${workspaceFolder}/test_privacy_joint.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_0_iid_1",
+                "ML1M_user_explicit_ae_0_iid_1",
                 "--train_mode",
                 "not private",
                 "--federated_mode",
@@ -70,7 +70,7 @@
             "program": "${workspaceFolder}/train_privacy_federated.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_0_iid_100",
+                "ML1M_user_explicit_ae_0_iid_100",
                 "--train_mode",
                 "private",
                 "--federated_mode",
@@ -99,7 +99,7 @@
             "program": "${workspaceFolder}/test_privacy_federated.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_0_iid_100",
+                "ML1M_user_explicit_ae_0_iid_100",
                 "--train_mode",
                 "private",
                 "--federated_mode",
@@ -129,7 +129,7 @@
             "program": "${workspaceFolder}/train_privacy_federated.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_0_iid_1",
+                "ML1M_user_explicit_ae_0_iid_1",
                 "--train_mode",
                 "private",
                 "--federated_mode",
@@ -158,7 +158,7 @@
             "program": "${workspaceFolder}/test_privacy_federated.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_0_iid_1",
+                "ML1M_user_explicit_ae_0_iid_1",
                 "--train_mode",
                 "private",
                 "--federated_mode",
@@ -187,7 +187,7 @@
             "program": "${workspaceFolder}/train_privacy_federated.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_0_iid_5",
+                "ML1M_user_explicit_ae_0_iid_100",
                 "--train_mode",
                 "private",
                 "--federated_mode",
@@ -216,7 +216,7 @@
             "program": "${workspaceFolder}/test_privacy_federated.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_0_iid_5",
+                "ML1M_user_explicit_ae_0_iid_100",
                 "--train_mode",
                 "private",
                 "--federated_mode",
@@ -245,7 +245,7 @@
             "program": "${workspaceFolder}/train_privacy_federated.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_0_iid_1",
+                "ML1M_user_explicit_ae_0_iid_1",
                 "--train_mode",
                 "private",
                 "--federated_mode",
@@ -274,7 +274,7 @@
             "program": "${workspaceFolder}/test_privacy_federated.py",
             "args": [
                 "--control_name",
-                "ML100K_user_explicit_ae_0_iid_1",
+                "ML1M_user_explicit_ae_0_iid_1",
                 "--train_mode",
                 "private",
                 "--federated_mode",

@@ -126,7 +126,9 @@ def runExperiment():
     # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
-        train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch)
+        node_idx = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch)
+        federation.update_global_model_momentum(node_idx)
+        # federation.update_global_model_parameters()
         federation.update_local_test_model_dict()
         info = test(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
         logger.safe(False)
@@ -185,7 +187,7 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
         None
     """
 
-    local, node_idx, participated_user = make_local(dataset, data_split, data_split_info, federation, metric)
+    local, node_idx = make_local(dataset, data_split, data_split_info, federation, metric)
    
     num_active_nodes = len(node_idx)
     local_parameters = []
@@ -211,9 +213,9 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
             
-    federation.combine_and_update_global_parameters(node_idx, participated_user)
+    federation.combine(node_idx)
 
-    return
+    return node_idx
 
 
 def test(dataset, data_split, data_split_info, federation, metric, logger, epoch):
@@ -224,6 +226,7 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
             batch_size = {'test': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['test'])}
             data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
             model = federation.load_local_test_model_dict(m)['model']
+            model.to(cfg['device'])
             model.train(False)
             for i, original_input in enumerate(data_loader):
                 input = copy.deepcopy(original_input)
@@ -234,7 +237,7 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
                 
                 evaluation = metric.evaluate(metric.metric_name['test'], input, output)
                 logger.append(evaluation, 'test', input_size)
-
+            model.to(cfg['cpu'])
         info = {'info': ['Model: {}'.format(cfg['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
@@ -250,19 +253,19 @@ def make_local(dataset, data_split, data_split_info, federation, metric):
     node_idx = torch.arange(cfg['num_nodes'])[torch.randperm(cfg['num_nodes'])[:num_active_nodes]].tolist()
     # local_parameters, param_idx = federation.distribute(node_idx)
     local = [None for _ in range(num_active_nodes)]
-    participated_user = []
+    # participated_user = []
     for m in range(num_active_nodes):
         # model_rate_m = federation.model_rate[node_idx[m]]
         cur_node_index = node_idx[m]
         user_per_node_i = data_split_info[cur_node_index]['num_users']
-        participated_user.append(user_per_node_i)
+        # participated_user.append(user_per_node_i)
         batch_size = {'train': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['train'])}
         data_loader_m = make_data_loader({'train': SplitDataset(dataset, 
             data_split[cur_node_index])}, batch_size)['train']
 
         federation.update_client_parameters_with_global_parameters(cur_node_index)
         local[m] = Local(data_loader_m, federation.load_local_model_dict(cur_node_index), metric)
-    return local, node_idx, participated_user
+    return local, node_idx
 
 
 class Local:
@@ -274,6 +277,7 @@ class Local:
     def train(self, logger):
 
         model = self.local_model_dict['model']
+        model.to(cfg['device'])
         model.train(True)
         optimizer = self.local_model_dict['optimizer']
         scheduler = self.local_model_dict['scheduler']
@@ -308,6 +312,7 @@ class Local:
 
                 evaluation = self.metric.evaluate(self.metric.metric_name['train'], input, output)
                 logger.append(evaluation, 'train', n=input_size)
+        model.to('cpu')
         # local_parameters = model.state_dict()
         # return local_parameters
 
