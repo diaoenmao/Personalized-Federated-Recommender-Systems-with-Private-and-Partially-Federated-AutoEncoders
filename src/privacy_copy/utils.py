@@ -171,6 +171,8 @@ def process_control():
     cfg['target_mode'] = cfg['control']['target_mode']
     cfg['model_name'] = cfg['control']['model_name']
     cfg['num_nodes'] = int(cfg['control']['num_nodes'])
+    global_epoch = int(cfg['control']['global_epoch'])
+    local_epoch = int(cfg['control']['local_epoch'])
     cfg['info'] = float(cfg['control']['info']) if 'info' in cfg['control'] else 0
 
     # Handle cfg['control']['data_split_mode']
@@ -191,6 +193,8 @@ def process_control():
     batch_size = {'user': {'ML100K': 100, 'ML1M': 500, 'ML10M': 5000, 'ML20M': 5000, 'NFP': 5000},
                 'item': {'ML100K': 100, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
 
+    
+
     # add parameter to model
     # Example: cfg['model_name']: ae              
     model_name = cfg['model_name']
@@ -203,7 +207,9 @@ def process_control():
             cfg[model_name]['lr'] = 1e-3
             cfg[model_name]['scheduler_name'] = 'None'
         else:
-            cfg[model_name]['local_epoch'] = 10
+            batch_size = {'user': {'ML100K': 5, 'ML1M': 10, 'ML10M': 10, 'ML20M': 10, 'NFP': 10},
+                'item': {'ML100K': 5, 'ML1M': 60, 'ML10M': 10, 'ML20M': 10, 'NFP': 10}}
+            cfg[model_name]['local_epoch'] = local_epoch
             cfg[model_name]['fraction'] = 0.1
             cfg[model_name]['optimizer_name'] = 'SGD'
             cfg[model_name]['lr'] = 0.1
@@ -220,7 +226,8 @@ def process_control():
     cfg[model_name]['weight_decay'] = 5e-4
     cfg[model_name]['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
-    cfg[model_name]['num_epochs'] = 400 if cfg['train_mode'] == 'private' else 400
+    # cfg[model_name]['num_epochs'] = 800 if cfg['train_mode'] == 'private' else 400
+    cfg[model_name]['num_epochs'] = global_epoch
     # add parameter to local model
     cfg['global'] = {}
     cfg['global']['lr'] = 1

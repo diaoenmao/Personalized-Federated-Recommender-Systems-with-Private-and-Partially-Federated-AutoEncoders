@@ -180,3 +180,7 @@ a.append(2)
 a.append(1)
 b = sorted(a)
 print(b)
+
+print((-5)//(-3))
+print(-5%-3)
+print(-5/-3)

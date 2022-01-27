@@ -24,7 +24,7 @@ class Federation:
         cur_num_items = self.data_split_info[0]['num_items']
         self.global_model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
                 'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items).to(cfg["device"])'.format(cfg['model_name']))
-
+        # print(self.global_model.state_dict())
         global_optimizer = make_optimizer(self.global_model, 'global')
         self.global_optimizer_state_dict = global_optimizer.state_dict()
 
@@ -49,11 +49,11 @@ class Federation:
     #     self.global_model = copy.deepcopy(self.example_model)
     #     self.reset_parameters(self.global_model)
 
-    def get_global_encoder_model_parameters(self):
-        return self.global_model.encoder.state_dict()
+    def get_global_model(self):
+        return self.global_model
     
-    def get_global_decoder_model_parameters(self):
-        return self.global_model.decoder.state_dict()
+    # def get_global_decoder_model_parameters(self):
+    #     return self.global_model.decoder.state_dict()
 
     def create_local_model_dict(self):
         
@@ -104,7 +104,13 @@ class Federation:
         
         net_model_dict = {}
         a = []
-        for key, value in self.global_model.named_parameters():
+        # a = self.global_model.state_dict()
+        c = self.global_model.state_dict().items()
+        # for key in self.global_model.state_dict():
+        for key,value in self.global_model.named_parameters():
+
+            # key = item[0]
+            # value = item[1]
             a.append(key)
             if cfg['federated_mode'] == 'encoder' and 'decoder' in key:
                 net_model_dict[key] = copy.deepcopy(cur_model.state_dict()[key]) 
@@ -112,9 +118,13 @@ class Federation:
                 net_model_dict[key] = copy.deepcopy(cur_model.state_dict()[key])
             elif key in self.batch_normalization_name:     
                 net_model_dict[key] = copy.deepcopy(cur_model.state_dict()[key])
+            # elif 'running_mean' in key or 'running_var' in key or 'num_batches_tracked' in key:
+            #     net_model_dict[key] = copy.deepcopy(cur_model.state_dict()[key])
             else:   
                 net_model_dict[key] = copy.deepcopy(self.global_model.state_dict()[key])
-        cur_model.load_state_dict(copy.deepcopy(net_model_dict))
+        # print('gfd', a)
+        b = cur_model.state_dict()
+        cur_model.load_state_dict(copy.deepcopy(net_model_dict), strict=False)
 
         return
 
@@ -123,8 +133,10 @@ class Federation:
         
         if cfg['model_name'] == 'ae':
             if cfg['train_mode'] == 'private':
-                
-                for key, value in self.global_model.named_parameters():
+                a = []
+                # for key in self.global_model.state_dict():
+                for key,value in self.global_model.named_parameters():
+                    a.append(key)
                     if cfg['federated_mode'] == 'encoder' and 'decoder' in key:
                         pass
                     elif cfg['federated_mode'] == 'decoder' and 'encoder' in key:
@@ -140,6 +152,7 @@ class Federation:
                             # if key not in self.new_global_model_parameter_dict:
                             #     self.new_global_model_parameter_dict[key] = 0
                             self.new_global_model_parameter_dict[key] += (cur_ratio * copy.deepcopy(cur_local_model[key]))
+                b = self.global_model.state_dict()
         else:   
             raise ValueError('Not valid model name')
         return
@@ -154,16 +167,19 @@ class Federation:
             cur_test_model = cur_local_test_model_dict['model']
             
             net_model_dict = {}
-            for key, value in self.global_model.named_parameters():
+            # for key in self.global_model.state_dict():
+            for key,value in self.global_model.named_parameters():
                 if cfg['federated_mode'] == 'encoder' and 'decoder' in key:
                     net_model_dict[key] = copy.deepcopy(cur_model.state_dict()[key]) 
                 elif cfg['federated_mode'] == 'decoder' and 'encoder' in key:
                     net_model_dict[key] = copy.deepcopy(cur_model.state_dict()[key])
                 elif key in self.batch_normalization_name:     
                     net_model_dict[key] = copy.deepcopy(cur_model.state_dict()[key])
+                # elif 'running_mean' in key or 'running_var' in key or 'num_batches_tracked' in key:
+                #     net_model_dict[key] = copy.deepcopy(cur_model.state_dict()[key])
                 else:   
                     net_model_dict[key] = copy.deepcopy(self.new_global_model_parameter_dict[key])
-            cur_test_model.load_state_dict(copy.deepcopy(net_model_dict))
+            cur_test_model.load_state_dict(copy.deepcopy(net_model_dict), strict=False)
 
         self.new_global_model_parameter_dict = collections.defaultdict(int)
         return
@@ -201,20 +217,40 @@ class Federation:
                 global_optimizer.load_state_dict(copy.deepcopy(self.global_optimizer_state_dict))
                 global_optimizer.zero_grad()
 
-                for k, v in self.global_model.named_parameters():
+                
+                for k,v in self.global_model.named_parameters():
                     parameter_type = k.split('.')[-1]
                     if 'weight' in parameter_type or 'bias' in parameter_type:
-                        tmp_v = v.data.new_zeros(v.size())
-                        for m in range(len(node_idx)):
-                            cur_node_index = node_idx[m]
-                            cur_model = self.local_model_dict[cur_node_index]['model']
-                            cur_ratio = 1 / len(node_idx)
-                            tmp_v += cur_ratio * copy.deepcopy(cur_model.state_dict()[k])
-                            # a = v.data
-                        #requires_grad为false，得到的这个tensor永远不需要计算其梯度，不具有grad
-                        #v.data(t-1) - 1 * (v.data(t-1) - tmp_v(t)) = tmp_v(t)
-                        v.grad = (v.data - tmp_v).detach()
-                        b = v.grad
+                      tmp_v = copy.deepcopy(v.data.new_zeros(v.size()))
+                      for m in range(len(node_idx)):
+                          cur_node_index = node_idx[m]
+                          cur_model = self.local_model_dict[cur_node_index]['model']
+                          cur_ratio = 1 / len(node_idx)
+                          tmp_v += cur_ratio * copy.deepcopy(cur_model.state_dict()[k])
+                          # a = v.data
+                      #requires_grad为false，得到的这个tensor永远不需要计算其梯度，不具有grad
+                      #v.data(t-1) - 1 * (v.data(t-1) - tmp_v(t)) = tmp_v(t)
+                      v.grad = (v.data - tmp_v).detach()
+                      b = v.grad
+
+                # for k in self.global_model.state_dict():
+                
+                #     v = self.global_model.state_dict()[k]
+                #     parameter_type = k.split('.')[-1]
+                #     # if 'weight' in parameter_type or 'bias' in parameter_type:
+                #     tmp_v = copy.deepcopy(v.new_zeros(v.size()))
+                #     for m in range(len(node_idx)):
+                #         cur_node_index = node_idx[m]
+                #         cur_model = self.local_model_dict[cur_node_index]['model']
+                #         cur_ratio = 1 / len(node_idx)
+                #         tmp_v += cur_ratio * copy.deepcopy(cur_model.state_dict()[k])
+                #         # a = v.data
+                #     #requires_grad为false，得到的这个tensor永远不需要计算其梯度，不具有grad
+                #     #v.data(t-1) - 1 * (v.data(t-1) - tmp_v(t)) = tmp_v(t)
+                #     v.grad = (v - tmp_v).detach()
+                #     # v.grad = (v.data - tmp_v).detach()
+                #     b = v.grad
+
                 global_optimizer.step()
                 self.global_optimizer_state_dict = global_optimizer.state_dict()
                 # self.new_global_model_parameter_dict = {k: v.cpu() for k, v in self.global_model.state_dict().items()}               

@@ -131,6 +131,9 @@ def runExperiment():
         # federation.update_global_model_parameters()
         federation.update_local_test_model_dict()
         info = test(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
+
+        # info = test_batchnorm(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
+        
         logger.safe(False)
 
         # model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
@@ -226,7 +229,7 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
             batch_size = {'test': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['test'])}
             data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
             model = federation.load_local_test_model_dict(m)['model']
-            model.to(cfg['device'])
+            # model.to(cfg['device'])
             model.train(False)
             for i, original_input in enumerate(data_loader):
                 input = copy.deepcopy(original_input)
@@ -237,7 +240,7 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
                 
                 evaluation = metric.evaluate(metric.metric_name['test'], input, output)
                 logger.append(evaluation, 'test', input_size)
-            model.to(cfg['cpu'])
+            # model.to(cfg['cpu'])
         info = {'info': ['Model: {}'.format(cfg['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
@@ -246,7 +249,36 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
 
     return info
 
+def test_batchnorm(dataset, data_split, data_split_info, federation, metric, logger, epoch):
 
+    with torch.no_grad():
+        # for m in range(len(data_split)):
+        # user_per_node_i = data_split_info[m]['num_users']
+        # batch_size = {'test': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['test'])}
+        # data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
+
+        batch_size = {'test': cfg[cfg['model_name']]['batch_size']['test']}
+        data_loader = make_data_loader({'test': dataset}, batch_size)['test']
+        model = federation.get_global_model()
+        # model.to(cfg['device'])
+        model.train(False)
+        for i, original_input in enumerate(data_loader):
+            input = copy.deepcopy(original_input)
+            input = collate(input)
+            input_size = len(input)
+            input = to_device(input, cfg['device'])
+            output = model(input)
+            
+            evaluation = metric.evaluate(metric.metric_name['test'], input, output)
+            logger.append(evaluation, 'test', input_size)
+            # model.to(cfg['cpu'])
+        info = {'info': ['Model: {}'.format(cfg['model_tag']),
+                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+        logger.append(info, 'test', mean=False)
+        info = logger.write('test', metric.metric_name['test'])
+        print(info)
+
+    return info
 def make_local(dataset, data_split, data_split_info, federation, metric):
     num_active_nodes = int(np.ceil(cfg[cfg['model_name']]['fraction'] * cfg['num_nodes']))
     # print('num_active_nodes', num_active_nodes)
@@ -277,13 +309,17 @@ class Local:
     def train(self, logger):
 
         model = self.local_model_dict['model']
-        model.to(cfg['device'])
+        # model.to(cfg['device'])
         model.train(True)
         optimizer = self.local_model_dict['optimizer']
         scheduler = self.local_model_dict['scheduler']
        
         model_name = cfg['model_name']
+        res = 0
+        local = 0
         for local_epoch in range(1, cfg[model_name]['local_epoch'] + 1):
+            local += 1
+            # print('local', local)
             for i, original_input in enumerate(self.data_loader):
                 input = copy.deepcopy(original_input)
                 input = collate(input)
@@ -293,7 +329,10 @@ class Local:
                 # input_size = input['img'].size(0)
                 # input['label_split'] = torch.tensor(self.label_split)
                 input = to_device(input, cfg['device'])
+                # res += 1
+                # print('gggggg', input['user'].size(), res)
                 output = model(input)
+                
                 
                 if optimizer is not None:
                     # Zero the gradient
@@ -312,7 +351,7 @@ class Local:
 
                 evaluation = self.metric.evaluate(self.metric.metric_name['train'], input, output)
                 logger.append(evaluation, 'train', n=input_size)
-        model.to('cpu')
+        # model.to('cpu')
         # local_parameters = model.state_dict()
         # return local_parameters
 

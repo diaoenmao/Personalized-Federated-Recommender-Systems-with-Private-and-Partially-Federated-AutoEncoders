@@ -40,10 +40,11 @@ def iid(dataset, num_nodes):
         data_split_info[i]['num_items'] = cfg['num_items']['data']
         idx = list(set(idx) - set(data_split[i]))
     
-    for i in range(len(idx)): 
-        data_split[i].append(idx[i])
-        data_split_info[i]['num_users'] += 1
-
+    # for i in range(len(idx)): 
+    #     data_split[i].append(idx[i])
+    #     data_split_info[i]['num_users'] += 1
+    # print(data_split_info)
+    # print('gff', data_split_info[0])
     return data_split, data_split_info
 
 
