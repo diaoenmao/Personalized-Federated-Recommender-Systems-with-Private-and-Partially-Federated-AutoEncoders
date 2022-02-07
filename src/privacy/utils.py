@@ -137,6 +137,8 @@ def process_dataset(dataset):
     """
     cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['test'])}
     cfg['num_users'], cfg['num_items'] = dataset['train'].num_users, dataset['train'].num_items
+    if cfg['num_nodes'] == 9999999:
+        cfg['num_nodes'] = cfg['num_users']['data']
     if cfg['info'] == 1:
         cfg['info_size'] = {}
         # hasattr() determines if the object has corresponding attribute
@@ -170,8 +172,19 @@ def process_control():
     cfg['data_mode'] = cfg['control']['data_mode']
     cfg['target_mode'] = cfg['control']['target_mode']
     cfg['model_name'] = cfg['control']['model_name']
-    cfg['num_nodes'] = int(cfg['control']['num_nodes'])
+    if cfg['control']['num_nodes'] != 'max':
+        cfg['num_nodes'] = int(cfg['control']['num_nodes'])
+    else:
+        # for parameter chosen, assign a value > 1
+        cfg['num_nodes'] = 9999999
+    global_epoch = int(cfg['control']['global_epoch'])
+    local_epoch = int(cfg['control']['local_epoch'])
     cfg['info'] = float(cfg['control']['info']) if 'info' in cfg['control'] else 0
+    cfg['optimizer_mode'] = cfg['control']['optimizer_mode']
+    cfg['fine_tune'] = True if cfg['control']['fine_tune'] == '1' else False
+    cfg['fine_tune_lr'] = float(cfg['control']['fine_tune_lr'])
+    cfg['fine_tune_batch_size'] = int(cfg['control']['fine_tune_batch_size'])
+    cfg['fine_tune_epoch'] = int(cfg['control']['fine_tune_epoch'])
 
     # Handle cfg['control']['data_split_mode']
     # Example: cfg['control']['data_split_mode']: 'iid'
@@ -185,9 +198,7 @@ def process_control():
     else:
         cfg['ae'] = {'encoder_hidden_size': [256, 128], 'decoder_hidden_size': [128, 256]}
 
-    
     # Add batch_size
-    
     batch_size = {'user': {'ML100K': 100, 'ML1M': 500, 'ML10M': 5000, 'ML20M': 5000, 'NFP': 5000},
                 'item': {'ML100K': 100, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
 
@@ -203,7 +214,9 @@ def process_control():
             cfg[model_name]['lr'] = 1e-3
             cfg[model_name]['scheduler_name'] = 'None'
         else:
-            cfg[model_name]['local_epoch'] = 5
+            batch_size = {'user': {'ML100K': 5, 'ML1M': 10, 'ML10M': 10, 'ML20M': 10, 'NFP': 10},
+                'item': {'ML100K': 5, 'ML1M': 10, 'ML10M': 10, 'ML20M': 10, 'NFP': 10}}
+            cfg[model_name]['local_epoch'] = local_epoch
             cfg[model_name]['fraction'] = 0.1
             cfg[model_name]['optimizer_name'] = 'SGD'
             cfg[model_name]['lr'] = 0.1
@@ -220,7 +233,8 @@ def process_control():
     cfg[model_name]['weight_decay'] = 5e-4
     cfg[model_name]['batch_size'] = {'train': batch_size[cfg['data_mode']][cfg['data_name']],
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
-    cfg[model_name]['num_epochs'] = 400 if cfg['train_mode'] == 'private' else 400
+    # cfg[model_name]['num_epochs'] = 800 if cfg['train_mode'] == 'private' else 400
+    cfg[model_name]['num_epochs'] = global_epoch
     # add parameter to local model
     cfg['global'] = {}
     cfg['global']['lr'] = 1
@@ -288,7 +302,7 @@ class Stats(object):
         return
 
 
-def make_optimizer(model, tag):
+def make_optimizer(model, tag, is_fine_tune=False):
 
     """
     Generate optimizer based on the parameters of model, the name of the model
@@ -304,21 +318,33 @@ def make_optimizer(model, tag):
     Raises:
         None
     """
+    if not is_fine_tune:
+        if cfg[tag]['optimizer_name'] == 'SGD':
+            optimizer = optim.SGD(model.parameters(), lr=cfg[tag]['lr'], momentum=cfg[tag]['momentum'],
+                                weight_decay=cfg[tag]['weight_decay'], nesterov=cfg[tag]['nesterov'])
+        elif cfg[tag]['optimizer_name'] == 'Adam':
+            optimizer = optim.Adam(model.parameters(), lr=cfg[tag]['lr'], betas=cfg[tag]['betas'],
+                                weight_decay=cfg[tag]['weight_decay'])
+        elif cfg[tag]['optimizer_name'] == 'LBFGS':
+            optimizer = optim.LBFGS(model.parameters(), lr=cfg[tag]['lr'])
+        else:
+            raise ValueError('Not valid optimizer name')
+        return optimizer
+    elif is_fine_tune:
+        if cfg[tag]['optimizer_name'] == 'SGD':
+            optimizer = optim.SGD(model.parameters(), lr=cfg['fine_tune_lr'], momentum=cfg[tag]['momentum'],
+                                weight_decay=cfg[tag]['weight_decay'], nesterov=cfg[tag]['nesterov'])
+        elif cfg[tag]['optimizer_name'] == 'Adam':
+            optimizer = optim.Adam(model.parameters(), lr=cfg['fine_tune_lr'], betas=cfg[tag]['betas'],
+                                weight_decay=cfg[tag]['weight_decay'])
+        elif cfg[tag]['optimizer_name'] == 'LBFGS':
+            optimizer = optim.LBFGS(model.parameters(), lr=cfg['fine_tune_lr'])
+        else:
+            raise ValueError('Not valid optimizer name')
+        return optimizer
 
-    if cfg[tag]['optimizer_name'] == 'SGD':
-        optimizer = optim.SGD(model.parameters(), lr=cfg[tag]['lr'], momentum=cfg[tag]['momentum'],
-                              weight_decay=cfg[tag]['weight_decay'], nesterov=cfg[tag]['nesterov'])
-    elif cfg[tag]['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(model.parameters(), lr=cfg[tag]['lr'], betas=cfg[tag]['betas'],
-                               weight_decay=cfg[tag]['weight_decay'])
-    elif cfg[tag]['optimizer_name'] == 'LBFGS':
-        optimizer = optim.LBFGS(model.parameters(), lr=cfg[tag]['lr'])
-    else:
-        raise ValueError('Not valid optimizer name')
-    return optimizer
 
-
-def make_scheduler(optimizer, tag):
+def make_scheduler(optimizer, tag, is_fine_tune=False):
 
     """
     Generate scheduler based on the optimizer, the name of the model
@@ -335,27 +361,50 @@ def make_scheduler(optimizer, tag):
         None
     """
 
-    if cfg[tag]['scheduler_name'] == 'None':
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[65535])
-    elif cfg[tag]['scheduler_name'] == 'StepLR':
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg[tag]['step_size'], gamma=cfg[tag]['factor'])
-    elif cfg[tag]['scheduler_name'] == 'MultiStepLR':
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg[tag]['milestones'],
-                                                   gamma=cfg[tag]['factor'])
-    elif cfg[tag]['scheduler_name'] == 'ExponentialLR':
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
-    elif cfg[tag]['scheduler_name'] == 'CosineAnnealingLR':
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg[tag]['num_epochs'], eta_min=0)
-    elif cfg[tag]['scheduler_name'] == 'ReduceLROnPlateau':
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=cfg[tag]['factor'],
-                                                         patience=cfg[tag]['patience'], verbose=False,
-                                                         threshold=cfg[tag]['threshold'], threshold_mode='rel',
-                                                         min_lr=cfg[tag]['min_lr'])
-    elif cfg[tag]['scheduler_name'] == 'CyclicLR':
-        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=cfg[tag]['lr'], max_lr=10 * cfg[tag]['lr'])
-    else:
-        raise ValueError('Not valid scheduler name')
-    return scheduler
+    if not is_fine_tune:
+        if cfg[tag]['scheduler_name'] == 'None':
+            scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[65535])
+        elif cfg[tag]['scheduler_name'] == 'StepLR':
+            scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg[tag]['step_size'], gamma=cfg[tag]['factor'])
+        elif cfg[tag]['scheduler_name'] == 'MultiStepLR':
+            scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg[tag]['milestones'],
+                                                    gamma=cfg[tag]['factor'])
+        elif cfg[tag]['scheduler_name'] == 'ExponentialLR':
+            scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+        elif cfg[tag]['scheduler_name'] == 'CosineAnnealingLR':
+            scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg[tag]['num_epochs'], eta_min=0)
+        elif cfg[tag]['scheduler_name'] == 'ReduceLROnPlateau':
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=cfg[tag]['factor'],
+                                                            patience=cfg[tag]['patience'], verbose=False,
+                                                            threshold=cfg[tag]['threshold'], threshold_mode='rel',
+                                                            min_lr=cfg[tag]['min_lr'])
+        elif cfg[tag]['scheduler_name'] == 'CyclicLR':
+            scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=cfg[tag]['lr'], max_lr=10 * cfg[tag]['lr'])
+        else:
+            raise ValueError('Not valid scheduler name')
+        return scheduler
+    elif is_fine_tune:
+        if cfg[tag]['scheduler_name'] == 'None':
+            scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[65535])
+        elif cfg[tag]['scheduler_name'] == 'StepLR':
+            scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg[tag]['step_size'], gamma=cfg[tag]['factor'])
+        elif cfg[tag]['scheduler_name'] == 'MultiStepLR':
+            scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg[tag]['milestones'],
+                                                    gamma=cfg[tag]['factor'])
+        elif cfg[tag]['scheduler_name'] == 'ExponentialLR':
+            scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+        elif cfg[tag]['scheduler_name'] == 'CosineAnnealingLR':
+            scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg['fine_tune_epoch'], eta_min=0)
+        elif cfg[tag]['scheduler_name'] == 'ReduceLROnPlateau':
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=cfg[tag]['factor'],
+                                                            patience=cfg[tag]['patience'], verbose=False,
+                                                            threshold=cfg[tag]['threshold'], threshold_mode='rel',
+                                                            min_lr=cfg[tag]['min_lr'])
+        elif cfg[tag]['scheduler_name'] == 'CyclicLR':
+            scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=cfg['fine_tune_lr'], max_lr=10 * cfg['fine_tune_lr'])
+        else:
+            raise ValueError('Not valid scheduler name')
+        return scheduler
 
 
 def resume(model_tag, load_tag='checkpoint', verbose=True):

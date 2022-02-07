@@ -15,11 +15,13 @@ def split_dataset(dataset, num_nodes, data_split_mode):
     if data_split_mode == 'iid':
         data_split['train'], data_split_info = iid(dataset['train'], num_nodes)
         data_split['test'], _ = iid(dataset['test'], num_nodes)
+    
     # elif 'non-iid' in cfg['data_split_mode']:
     #     data_split['train'], label_split = non_iid(dataset['train'], num_users)
     #     data_split['test'], _ = non_iid(dataset['test'], num_users, label_split)
     else:
         raise ValueError('Not valid data split mode')
+    # print(data_split['test'])
     return data_split, data_split_info
 
 
@@ -40,10 +42,12 @@ def iid(dataset, num_nodes):
         data_split_info[i]['num_items'] = cfg['num_items']['data']
         idx = list(set(idx) - set(data_split[i]))
     
-    for i in range(len(idx)): 
-        data_split[i].append(idx[i])
-        data_split_info[i]['num_users'] += 1
-
+    # for i in range(len(idx)): 
+    #     data_split[i].append(idx[i])
+    #     data_split_info[i]['num_users'] += 1
+    # print(data_split_info)
+    # print('gff', data_split_info[0])
+    # print('wudi', data_split_info)
     return data_split, data_split_info
 
 

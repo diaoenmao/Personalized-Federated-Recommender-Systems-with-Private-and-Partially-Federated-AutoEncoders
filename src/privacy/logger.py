@@ -33,7 +33,7 @@ class Logger:
                 self.history[name].append(self.mean[name])
         return
 
-    def append(self, result, tag, n=1, mean=True):
+    def append(self, result, tag, n=1, mean=True, is_fine_tune=False):
 
         """
         Append evaluation and average the evaluation dividing by total count
@@ -53,21 +53,26 @@ class Logger:
             name = '{}/{}'.format(tag, k)
             self.tracker[name] = result[k]
             if mean:
-                if isinstance(result[k], Number):
-                    self.counter[name] += n
-                    self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]
-                elif isinstance(result[k], Iterable):
-                    if name not in self.mean:
-                        self.counter[name] = [0 for _ in range(len(result[k]))]
-                        self.mean[name] = [0 for _ in range(len(result[k]))]
-                    _ntuple = ntuple(len(result[k]))
-                    n = _ntuple(n)
-                    for i in range(len(result[k])):
-                        self.counter[name][i] += n[i]
-                        self.mean[name][i] = ((self.counter[name][i] - n[i]) * self.mean[name][i] + n[i] *
-                                              result[k][i]) / self.counter[name][i]
+                if is_fine_tune:
+                    if isinstance(result[k], Number):
+                        self.counter[name] += n
+                        self.mean[name] = ((self.counter[name] - n) * self.mean[name] + result[k]) / self.counter[name]
                 else:
-                    raise ValueError('Not valid data type')
+                    if isinstance(result[k], Number):
+                        self.counter[name] += n
+                        self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]
+                    elif isinstance(result[k], Iterable):
+                        if name not in self.mean:
+                            self.counter[name] = [0 for _ in range(len(result[k]))]
+                            self.mean[name] = [0 for _ in range(len(result[k]))]
+                        _ntuple = ntuple(len(result[k]))
+                        n = _ntuple(n)
+                        for i in range(len(result[k])):
+                            self.counter[name][i] += n[i]
+                            self.mean[name][i] = ((self.counter[name][i] - n[i]) * self.mean[name][i] + n[i] *
+                                                result[k][i]) / self.counter[name][i]
+                    else:
+                        raise ValueError('Not valid data type')
         return
 
     def write(self, tag, metric_names):

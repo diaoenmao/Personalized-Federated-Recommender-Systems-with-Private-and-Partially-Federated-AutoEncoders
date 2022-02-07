@@ -39,7 +39,7 @@ class Encoder(nn.Module):
        
         blocks.append(nn.Linear(input_size, hidden_size[0]))
         # blocks.append(nn.LayerNorm(hidden_size[0]))
-        # blocks.append(nn.GroupNorm(1, hidden_size[0]))
+        blocks.append(nn.GroupNorm(1, hidden_size[0]))
         # blocks.append(nn.BatchNorm1d(hidden_size[0]))
         blocks.append(nn.Tanh())
         
@@ -49,7 +49,8 @@ class Encoder(nn.Module):
             # blocks.append(nn.LayerNorm(hidden_size[i]))
             blocks.append(nn.Linear(hidden_size[i], hidden_size[i + 1]))
             # blocks.append(nn.LayerNorm(hidden_size[i + 1]))
-            # blocks.append(nn.GroupNorm(1, hidden_size[i + 1]))
+            blocks.append(nn.GroupNorm(1, hidden_size[i + 1]))
+            # blocks.append(nn.BatchNorm1d(hidden_size[i+1]))
             blocks.append(nn.Tanh())
         
         # nn.Sequential: A sequential container. 
@@ -109,7 +110,8 @@ class Decoder(nn.Module):
         for i in range(len(hidden_size) - 1):
             # blocks.append(nn.LayerNorm(hidden_size[i]))
             blocks.append(nn.Linear(hidden_size[i], hidden_size[i + 1]))
-            # blocks.append(nn.GroupNorm(1, hidden_size[i + 1]))
+            blocks.append(nn.GroupNorm(1, hidden_size[i + 1]))
+            # blocks.append(nn.BatchNorm1d(hidden_size[i+1]))
             # blocks.append(nn.LayerNorm(hidden_size[i + 1]))
             blocks.append(nn.Tanh())
         

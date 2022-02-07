@@ -1,5 +1,6 @@
 import math
 import torch
+import numpy as np
 import torch.nn.functional as F
 from config import cfg
 from utils import recur
@@ -23,6 +24,14 @@ def RMSE(output, target):
 
     with torch.no_grad():
         rmse = F.mse_loss(output, target).sqrt().item()
+    
+    # print('rmse', rmse, type(rmse))
+    # if np.isnan(rmse):
+    #     print('66666')
+    #     print(output)
+    #     print(target)
+    # if not isinstance(rmse, int):
+    #     print('zz', output, target)
     return rmse
 
 

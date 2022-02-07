@@ -8,6 +8,13 @@ control:
   info: 1
   data_split_mode: 'iid'
   num_nodes: 100
+  global_epoch: 800
+  local_epoch: 5
+  optimizer_mode: global
+  fine_tune: 0
+  fine_tune_lr: 0.1
+  fine_tune_batch_size: 5
+  fine_tune_epoch: 5
 # experiment
 train_mode: private
 federated_mode: decoder
