@@ -11,6 +11,7 @@ from config import cfg, process_args
 from data import fetch_dataset, make_data_loader, split_dataset, SplitDataset
 from metrics import Metric
 from utils import save, to_device, process_control, process_dataset, resume, collate, make_optimizer, make_scheduler
+from process import draw_movielens_learning_curve
 from logger import make_logger
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -42,7 +43,7 @@ def runExperiment():
     process_dataset(dataset)
     data_split, data_split_info = split_dataset(dataset, cfg['num_nodes'], cfg['data_split_mode'])
     # data_loader = make_data_loader(dataset)
-    
+
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     if cfg['target_mode'] == 'explicit':
         metric = Metric({'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']})
@@ -59,14 +60,16 @@ def runExperiment():
     test_logger = make_logger('output/runs/test_{}'.format(cfg['model_tag']))
     test(dataset['test'], data_split['test'], data_split_info, model, metric, test_logger, last_epoch)
 
+    result = resume(cfg['model_tag'], load_tag='checkpoint')
+    train_logger = result['logger'] if 'logger' in result else None
+    print('ggg')
     if cfg['fine_tune'] == True:
-        train_logger = result['logger'] if 'logger' in result else None
+        print('ggg1')
         fine_tune(dataset, data_split, data_split_info, global_model_state_dict, metric, train_logger, test_logger)
     
-    # result = resume(cfg['model_tag'], load_tag='checkpoint')
-    # train_logger = result['logger'] if 'logger' in result else None
-    # result = {'cfg': cfg, 'epoch': last_epoch, 'logger': {'train': train_logger, 'test': test_logger}}
-    # save(result, './output/result/{}.pt'.format(cfg['model_tag']))
+    result = {'cfg': cfg, 'epoch': last_epoch, 'logger': {'train': train_logger, 'test': test_logger}}
+    save(result, './output/result/{}.pt'.format(cfg['model_tag']))
+    # draw_movielens_learning_curve()
     return
 
 def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
@@ -211,7 +214,7 @@ def fine_tune(dataset, data_split, data_split_info, global_model_state_dict, met
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 
                          'fine_tune_Test_Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         test_logger.append(info, 'test', mean=False)
-        # print(test_logger.write('test', metric.metric_name['test']))
+        print(test_logger.write('test', metric.metric_name['test']))
         test_logger.safe(False)
     # print('train_evaluation_record', train_evaluation_record)
     # print('test_evaluation_record', test_evaluation_record)

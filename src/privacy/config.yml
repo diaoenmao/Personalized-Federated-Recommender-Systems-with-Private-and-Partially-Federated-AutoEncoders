@@ -4,6 +4,8 @@ control:
   data_name: ML100K
   data_mode: user
   target_mode: explicit
+  train_mode: private
+  federated_mode: decoder
   model_name: ae
   info: 1
   data_split_mode: 'iid'
@@ -11,13 +13,11 @@ control:
   global_epoch: 800
   local_epoch: 5
   optimizer_mode: global
-  fine_tune: 0
-  fine_tune_lr: 0.1
-  fine_tune_batch_size: 5
-  fine_tune_epoch: 5
 # experiment
-train_mode: private
-federated_mode: decoder
+fine_tune: 0
+fine_tune_lr: 0.1
+fine_tune_batch_size: 5
+fine_tune_epoch: 5
 num_workers: 0
 init_seed: 0
 num_experiments: 1

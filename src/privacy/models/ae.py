@@ -6,7 +6,6 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import load, processed_folder
 from .models_utils import loss_fn
 from config import cfg
 

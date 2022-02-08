@@ -171,6 +171,8 @@ def process_control():
     cfg['data_name'] = cfg['control']['data_name']
     cfg['data_mode'] = cfg['control']['data_mode']
     cfg['target_mode'] = cfg['control']['target_mode']
+    cfg['train_mode'] = cfg['control']['train_mode']
+    cfg['federated_mode'] = cfg['control']['federated_mode']
     cfg['model_name'] = cfg['control']['model_name']
     if cfg['control']['num_nodes'] != 'max':
         cfg['num_nodes'] = int(cfg['control']['num_nodes'])
@@ -181,10 +183,11 @@ def process_control():
     local_epoch = int(cfg['control']['local_epoch'])
     cfg['info'] = float(cfg['control']['info']) if 'info' in cfg['control'] else 0
     cfg['optimizer_mode'] = cfg['control']['optimizer_mode']
-    cfg['fine_tune'] = True if cfg['control']['fine_tune'] == '1' else False
-    cfg['fine_tune_lr'] = float(cfg['control']['fine_tune_lr'])
-    cfg['fine_tune_batch_size'] = int(cfg['control']['fine_tune_batch_size'])
-    cfg['fine_tune_epoch'] = int(cfg['control']['fine_tune_epoch'])
+    print(type(cfg['fine_tune']))
+    cfg['fine_tune'] = True if cfg['fine_tune'] == 1 else False
+    cfg['fine_tune_lr'] = float(cfg['fine_tune_lr'])
+    cfg['fine_tune_batch_size'] = int(cfg['fine_tune_batch_size'])
+    cfg['fine_tune_epoch'] = int(cfg['fine_tune_epoch'])
 
     # Handle cfg['control']['data_split_mode']
     # Example: cfg['control']['data_split_mode']: 'iid'

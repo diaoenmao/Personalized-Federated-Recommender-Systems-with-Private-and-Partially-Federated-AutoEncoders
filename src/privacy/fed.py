@@ -47,6 +47,38 @@ class Federation:
         self.local_scheduler[cur_node_index] = scheduler
         return self.local_scheduler[cur_node_index]
 
+    def store_local_optimizer(self, cur_node_index, local_optimizer):
+        self.local_optimizer[cur_node_index] = copy.deepcopy(local_optimizer)
+        return 
+
+    def store_local_scheduler(self, cur_node_index, local_scheduler):
+        self.local_scheduler[cur_node_index] = copy.deepcopy(local_scheduler)
+        return 
+
+    # def get_local_optimizer_state_dict(self, cur_node_index, model):
+    #     if cur_node_index in self.local_optimizer:
+    #         return self.local_optimizer[cur_node_index]
+        
+    #     optimizer = make_optimizer(model, cfg['model_name'])
+    #     self.local_optimizer[cur_node_index] = optimizer.state_dict()
+    #     return self.local_optimizer[cur_node_index]
+
+    # def get_local_scheduler_state_dict(self, cur_node_index, model):
+    #     if cur_node_index in self.local_scheduler:
+    #         return self.local_scheduler[cur_node_index]
+        
+    #     scheduler = make_scheduler(self.get_local_optimizer(cur_node_index, model), cfg['model_name'])
+    #     self.local_scheduler[cur_node_index] = scheduler.state_dict()
+    #     return self.local_scheduler[cur_node_index]
+
+    # def store_local_optimizer_state_dict(self, cur_node_index, local_optimizer_state_dict):
+    #     self.local_optimizer[cur_node_index] = local_optimizer_state_dict
+    #     return 
+
+    # def store_local_scheduler_state_dict(self, cur_node_index, local_scheduler_state_dict):
+    #     self.local_scheduler[cur_node_index] = local_scheduler_state_dict
+    #     return 
+
     def load_local_model_dict(self, index):
         return self.local_model_dict[index]
 

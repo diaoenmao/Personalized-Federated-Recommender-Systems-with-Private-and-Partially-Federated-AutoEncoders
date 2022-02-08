@@ -207,7 +207,7 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
     start_time = time.time()
     for m in range(num_active_nodes):
         # local_parameters[m] = copy.deepcopy(local[m].train(logger))
-        federation.generate_new_global_model_parameter_dict(local[m].train(logger), num_active_nodes)
+        federation.generate_new_global_model_parameter_dict(local[m].train(logger, federation, node_idx[m]), num_active_nodes)
         # cur_node_index = node_idx[m]
         # cur_local_model_dict = federation.load_local_model_dict(cur_node_index)
         # local_parameters.append(copy.deepcopy(cur_local_model_dict['model'].state_dict()))
@@ -298,27 +298,28 @@ def make_local(dataset, data_split, data_split_info, federation, metric, global_
                 'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items)'.format(cfg['model_name']))
         model = federation.distribute(model)
 
-        optimizer = None
-        scheduler = None
-        if cfg['optimizer_mode'] == 'local':
-            local_optimizer = federation.get_local_optimizer(cur_node_index, model)
-            local_scheduler = federation.get_local_scheduler(cur_node_index, model)
+        # local_optimizer = None
+        # local_scheduler = None
+        # if cfg['optimizer_mode'] == 'local':
+        #     local_optimizer_state_dict = federation.get_local_optimizer_state_dict(cur_node_index, model)
+        #     local_scheduler_state_dict = federation.get_local_scheduler_state_dict(cur_node_index, model)
+
         # cur_model_dict = federation.load_local_model_dict(cur_node_index)
         # federation.update_client_parameters_with_global_parameters(cur_model_dict)
-        local[m] = Local(data_loader_m, model, metric, global_optimizer_lr, local_optimizer, local_scheduler)
+        local[m] = Local(data_loader_m, model, metric, global_optimizer_lr)
     return local, node_idx
 
 
 class Local:
-    def __init__(self, data_loader, model, metric, global_optimizer_lr, local_optimizer, local_scheduler):
+    def __init__(self, data_loader, model, metric, global_optimizer_lr):
         self.data_loader = data_loader
         self.model = model
         self.metric = metric
         self.global_optimizer_lr = global_optimizer_lr
-        self.local_optimizer = local_optimizer
-        self.local_scheduler = local_scheduler
+        # self.local_optimizer_state_dict = local_optimizer_state_dict
+        # self.local_scheduler_state_dict = local_scheduler_state_dict
 
-    def train(self, logger):
+    def train(self, logger, federation, cur_node_index):
 
         model = self.model
         model.to(cfg['device'])
@@ -326,13 +327,18 @@ class Local:
         
         optimizer = None
         scheduler = None
-        # optimizer.load_state_dict({'lr': self.optimizer_lr}, strict=False)
+
+        optimizer = make_optimizer(model, cfg['model_name'])
         if cfg['optimizer_mode'] == 'local':
-            optimizer = self.local_optimizer
-            scheduler = self.local_scheduler
-        elif cfg['optimizer_mode'] == 'global':
-            optimizer = make_optimizer(model, cfg['model_name'])
-            optimizer.param_groups[0]['lr'] = self.global_optimizer_lr
+            # optimizer = make_optimizer(model, cfg['model_name'])
+            # scheduler = make_scheduler(optimizer, cfg['model_name'])
+            local_optimizer_state_dict = federation.get_local_optimizer(cur_node_index, model).state_dict()
+            # local_scheduler_state_dict = federation.get_local_scheduler(cur_node_index, model).state_dict()
+            optimizer.load_state_dict(local_optimizer_state_dict)
+            # scheduler.load_state_dict(local_scheduler_state_dict)
+        # elif cfg['optimizer_mode'] == 'global':
+        #     optimizer = make_optimizer(model, cfg['model_name'])
+        optimizer.param_groups[0]['lr'] = self.global_optimizer_lr
         # print('gggg', self.global_optimizer_lr, optimizer.state_dict())
         model_name = cfg['model_name']
         
@@ -361,6 +367,9 @@ class Local:
                 logger.append(evaluation, 'train', n=input_size)
         if scheduler is not None:
             scheduler.step()
+        if cfg['optimizer_mode'] == 'local':
+            federation.store_local_optimizer(cur_node_index, copy.deepcopy(optimizer))
+            # federation.store_local_scheduler(cur_node_index, copy.deepcopy(scheduler))
         # model.to('cpu')
         local_parameters = model.state_dict()
         
