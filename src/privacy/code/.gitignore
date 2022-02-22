@@ -119,7 +119,6 @@ data
 model/
 
 #output
-../output/
 output/
 tmp/
 res/

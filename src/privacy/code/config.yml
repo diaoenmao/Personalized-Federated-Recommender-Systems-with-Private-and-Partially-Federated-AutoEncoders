@@ -1,0 +1,33 @@
+---
+# control
+control:
+  data_name: ML100K
+  data_mode: user
+  target_mode: explicit
+  train_mode: private
+  federated_mode: decoder
+  model_name: ae
+  info: 1
+  data_split_mode: 'iid'
+  num_nodes: 100
+  global_epoch: 800
+  local_epoch: 5
+  store_local_optimizer: 0
+  use_global_optimizer_lr: 0
+  partial_average_shuffle: 1
+  partial_average_ratio: 0.1
+  weighted_average_method: None
+# experiment
+fine_tune: 0
+fine_tune_lr: 0.1
+fine_tune_batch_size: 5
+fine_tune_epoch: 5
+fix_layers: last
+fine_tune_scheduler: CosineAnnealingLR
+num_workers: 0
+init_seed: 0
+num_experiments: 1
+log_interval: 0.25
+device: cpu
+resume_mode: 0
+verbose: False
