@@ -92,6 +92,7 @@ def runExperiment():
     # model is the instance of class AE (in models / ae.py). It contains the training process of 
     #   Encoder and Decoder.
     federation = Federation(data_split_info)
+    
 
     if cfg['target_mode'] == 'explicit':
         # metric / class Metric
@@ -135,11 +136,12 @@ def runExperiment():
         
         global_optimizer_lr = global_optimizer.state_dict()['param_groups'][0]['lr']
         node_idx, local_parameters = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch, global_optimizer_lr)
+        model_state_dict = federation.get_new_global_model_parameter_dict()
+        federation.update_global_model_momentum()
         info = test(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
 
         # info = test_batchnorm(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
-        model_state_dict = federation.get_new_global_model_parameter_dict()
-        federation.update_global_model_momentum()
+        
         # del local_parameters
         # gc.collect()
         global_scheduler.step()
@@ -254,13 +256,13 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
         old_node_average_idx = set(random.sample(node_idx, num_average_nodes))
         rest_node_idx = list(set(node_idx) - old_node_average_idx)
         print('partial_average_shuffle_False', len(old_node_average_idx), len(rest_node_idx))
-        partial_average_portion, non_partial_average_portion = calculate_portion(num_average_nodes, num_active_nodes)
+        # partial_average_portion, non_partial_average_portion = calculate_portion(num_average_nodes, num_active_nodes)
         # print(partial_average_portion, non_partial_average_portion, old_node_average_idx)
         for m in range(len(rest_node_idx)):
             # print('zz', local_epoch, m)
             # local_parameters[m] = copy.deepcopy(local[m].train(logger))
             cur_model_train_state_dict = local[m].train(logger, federation, node_idx[m], cfg[model_name]['local_epoch'])
-            federation.generate_new_global_model_parameter_dict(cur_model_train_state_dict, non_partial_average_portion, is_portion=True)
+            federation.generate_new_global_model_parameter_dict(cur_model_train_state_dict, num_active_nodes)
 
             if m % int((num_active_nodes * cfg['log_interval']) + 1) == 0:
                 local_time = (time.time() - start_time) / (m + 1)
@@ -288,7 +290,7 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
 
                 if local_epoch == cfg[model_name]['local_epoch']:
                     # print('local_epoch', local_epoch, partial_average_portion)
-                    federation.generate_new_global_model_parameter_dict(cur_model_train_state_dict, partial_average_portion, is_portion=True)
+                    federation.generate_new_global_model_parameter_dict(cur_model_train_state_dict, num_active_nodes, is_portion=True)
                 # cur_node_index = node_idx[m]
                 # cur_local_model_dict = federation.load_local_model_dict(cur_node_index)
                 # local_parameters.append(copy.deepcopy(cur_local_model_dict['model'].state_dict()))
@@ -419,7 +421,7 @@ class Local:
         if cfg['store_local_optimizer'] == True:
             # optimizer = make_optimizer(model, cfg['model_name'])
             # scheduler = make_scheduler(optimizer, cfg['model_name'])
-            local_optimizer_state_dict = federation.get_local_optimizer(cur_node_index, model).state_dict()
+            local_optimizer_state_dict = federation.get_local_optimizer(cur_node_index).state_dict()
             # local_scheduler_state_dict = federation.get_local_scheduler(cur_node_index, model).state_dict()
             optimizer.load_state_dict(local_optimizer_state_dict)
             # scheduler.load_state_dict(local_scheduler_state_dict)
@@ -442,7 +444,7 @@ class Local:
                 if input_size == 0:
                     continue
                 input = to_device(input, cfg['device'])
-                output = model(input)
+                output = model(input, federation)
                 
                 if optimizer is not None:
                     # Zero the gradient

@@ -106,62 +106,40 @@ def runExperiment():
     else:
         raise ValueError('Not valid target mode')
     
-    # Handle resuming the training situation
-    # if cfg['resume_mode'] == 1:
-    #     result = resume(cfg['model_tag'])
-    #     last_epoch = result['epoch']
-    #     if last_epoch > 1:
-    #         model.load_state_dict(result['model_state_dict'])
-    #         if cfg['model_name'] != 'base':
-    #             optimizer.load_state_dict(result['optimizer_state_dict'])
-    #             scheduler.load_state_dict(result['scheduler_state_dict'])
-    #         logger = result['logger']
-    #     else:
-    #         logger = make_logger('../output/runs/train_{}'.format(cfg['model_tag']))
-    # else:
-    last_epoch = 1
-    logger = make_logger('../output/runs/train_{}'.format(cfg['model_tag']))
-    
     model = eval('models.{}(encoder_num_users=10, encoder_num_items=10,' 
                 'decoder_num_users=10, decoder_num_items=10)'.format(cfg['model_name']))
     global_optimizer = make_optimizer(model, cfg['model_name'])
-    a = global_optimizer.state_dict()
-    b = a['param_groups'][0]['lr']
     global_scheduler = make_scheduler(global_optimizer, cfg['model_name'])
 
+    # Handle resuming the training situation
+    if cfg['resume_mode'] == 1:
+        result = resume(cfg['model_tag'])
+        last_epoch = result['epoch']
+        if last_epoch > 1:
+            federation.global_model.load_state_dict(result['model_state_dict'])
+            if cfg['model_name'] != 'base':
+                global_optimizer.load_state_dict(result['optimizer_state_dict'])
+                global_scheduler.load_state_dict(result['scheduler_state_dict'])
+            logger = result['logger']
+        else:
+            logger = make_logger('../output/runs/train_{}'.format(cfg['model_tag']))
+    else:
+        last_epoch = 1
+        logger = make_logger('../output/runs/train_{}'.format(cfg['model_tag']))
+    
     # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
         
         global_optimizer_lr = global_optimizer.state_dict()['param_groups'][0]['lr']
         node_idx, local_parameters = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch, global_optimizer_lr)
-        info = test(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
-
-        # info = test_batchnorm(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
-        model_state_dict = federation.get_new_global_model_parameter_dict()
         federation.update_global_model_momentum()
-        # del local_parameters
-        # gc.collect()
+        model_state_dict = federation.global_model.state_dict()
+        info = test(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
+    
         global_scheduler.step()
         logger.safe(False)
 
-        
-        # if cfg['model_name'] != 'base':
-        #     optimizer_state_dict = optimizer.state_dict()
-        #     scheduler_state_dict = scheduler.state_dict()
-        #     result = {'cfg': cfg, 'epoch': epoch + 1, 'model_state_dict': model_state_dict,
-        #               'optimizer_state_dict': optimizer_state_dict, 'scheduler_state_dict': scheduler_state_dict,
-        #               'logger': logger}
-        # else:
-        #     result = {'cfg': cfg, 'epoch': epoch + 1, 'model_state_dict': model_state_dict, 'logger': logger}
-        # save(result, '../output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        # if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
-        #     metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
-        #     shutil.copy('../output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
-        #                 '../output/model/{}_best.pt'.format(cfg['model_tag']))
-        
-        # result = {'cfg': cfg, 'epoch': epoch + 1, 'model_state_dict': model_state_dict, 'logger': logger}
-        
         result = {'cfg': cfg, 'epoch': epoch + 1, 'info': info, 'logger': logger, 'model_state_dict': model_state_dict, 'data_split': data_split, 'data_split_info': data_split_info}
         save(result, '../output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
         if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
@@ -335,7 +313,7 @@ class Local:
         if cfg['store_local_optimizer'] == True:
             # optimizer = make_optimizer(model, cfg['model_name'])
             # scheduler = make_scheduler(optimizer, cfg['model_name'])
-            local_optimizer_state_dict = federation.get_local_optimizer(cur_node_index, model).state_dict()
+            local_optimizer_state_dict = federation.get_local_optimizer(cur_node_index).state_dict()
             # local_scheduler_state_dict = federation.get_local_scheduler(cur_node_index, model).state_dict()
             optimizer.load_state_dict(local_optimizer_state_dict)
             # scheduler.load_state_dict(local_scheduler_state_dict)

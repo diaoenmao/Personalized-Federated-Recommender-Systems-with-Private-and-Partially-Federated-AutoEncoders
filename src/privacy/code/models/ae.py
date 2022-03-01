@@ -262,6 +262,11 @@ class AE(nn.Module):
         # generate boolean matrix to indicate if the input['target_rating'][x][y] is infinite
         # a = input['target_rating']
         target_mask = ~(input['target_rating'].isnan())
+        # not_nan_indicator = None
+        # if cfg['data_mode'] == 'user':
+        #     not_nan_indicator = [False for _ in range(cfg['num_items'])]
+
+
         output['target_rating'], input['target_rating'] = output['target_rating'][target_mask], input['target_rating'][
             target_mask]
             

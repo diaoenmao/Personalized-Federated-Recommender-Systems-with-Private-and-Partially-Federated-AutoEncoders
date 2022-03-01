@@ -13,6 +13,7 @@ from utils import collate, to_device
 def split_dataset(dataset, num_nodes, data_split_mode):
     data_split = {}
     if data_split_mode == 'iid':
+      
         data_split['train'], data_split_info = iid(dataset['train'], num_nodes)
         data_split['test'], _ = iid(dataset['test'], num_nodes)
     
