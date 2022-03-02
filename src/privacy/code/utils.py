@@ -187,8 +187,10 @@ def process_control():
         cfg['num_nodes'] = int(cfg['control']['num_nodes'])
     else:
         cfg['num_nodes'] = 9999999
-    cfg['compress_transmission'] = True if int(cfg['control']['compress_transmission']) == 1 else False
-    cfg['experiment_size'] = cfg['control']['experiment_size']
+    if 'compress_transmission' in cfg['control']:
+        cfg['compress_transmission'] = True if int(cfg['control']['compress_transmission']) == 1 else False
+    if 'experiment_size' in cfg['control']:
+        cfg['experiment_size'] = cfg['control']['experiment_size']
     
     cfg['fine_tune'] = False
     if 'fine_tune' in cfg:
