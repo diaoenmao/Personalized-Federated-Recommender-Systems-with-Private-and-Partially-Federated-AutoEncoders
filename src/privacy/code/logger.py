@@ -2,7 +2,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from torch.utils.tensorboard import SummaryWriter
 from numbers import Number
-from utils import ntuple
+from utils import ntuple, makedir_exist_ok
 import datetime
 
 
@@ -24,7 +24,9 @@ class Logger:
 
     def safe(self, write):
         if write:
+            a = self.log_path
             self.writer = SummaryWriter(self.log_path)
+            b = 5
         else:
             if self.writer is not None:
                 self.writer.close()
@@ -126,7 +128,9 @@ class Logger:
 
 
 def make_logger(path):
-    current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    logger_path = '{}_{}'.format(path, current_time)
+    # current_time = datetime.datetime.now().strftime('%b%d_%H-%M')
+    # logger_path = '{}_{}'.format(path, current_time)
+    logger_path = path
+    makedir_exist_ok(logger_path)
     logger = Logger(logger_path)
     return logger

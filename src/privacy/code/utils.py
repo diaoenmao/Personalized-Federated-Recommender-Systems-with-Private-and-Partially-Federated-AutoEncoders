@@ -12,6 +12,12 @@ from torchvision.utils import save_image
 from config import cfg
 
 
+def concatenate_path(path_item_list):
+    res = os.path.join(*path_item_list)
+    makedir_exist_ok(res)
+    
+    return res
+
 def check_exists(path):
     return os.path.exists(path)
 

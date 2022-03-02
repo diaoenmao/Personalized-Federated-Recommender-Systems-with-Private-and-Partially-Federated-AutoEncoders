@@ -81,7 +81,7 @@
                 "--log_interval",
                 "0.25",
                 "--device",
-                "cpu",
+                "cuda",
                 "--resume_mode",
                 "0",
                 "--verbose",

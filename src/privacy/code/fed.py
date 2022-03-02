@@ -20,8 +20,12 @@ class Federation:
 
         cur_num_users = self.data_split_info[0]['num_users']
         cur_num_items = self.data_split_info[0]['num_items']
-        self.global_model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
-                'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items).to(cfg["device"])'.format(cfg['model_name']))
+        if cfg['experiment_size'] == 'large':
+            self.global_model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
+                    'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items).to("cpu")'.format(cfg['model_name']))
+        else:
+            self.global_model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
+                    'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items).to(cfg["device"])'.format(cfg['model_name']))
         self.global_optimizer = make_optimizer(self.global_model, cfg['model_name'])
         self.global_optimizer_state_dict = self.global_optimizer.state_dict()
         
@@ -174,10 +178,13 @@ class Federation:
             global_optimizer = make_optimizer(self.global_model, cfg['model_name'])
             global_optimizer.load_state_dict(copy.deepcopy(self.global_optimizer_state_dict))
             global_optimizer.zero_grad()
+            c = next(self.global_model.parameters()).device
             for k,v in self.global_model.named_parameters():
                 parameter_type = k.split('.')[-1]
                 if 'weight' in parameter_type or 'bias' in parameter_type:
                     tmp_v = copy.deepcopy(v.data.new_zeros(v.size()))
+                    a = tmp_v.device
+                    # b = self.new_global_model_parameter_dict[k].device
                     tmp_v += copy.deepcopy(self.new_global_model_parameter_dict[k])
                       # a = v.data
                     #requires_grad为false，得到的这个tensor永远不需要计算其梯度，不具有grad

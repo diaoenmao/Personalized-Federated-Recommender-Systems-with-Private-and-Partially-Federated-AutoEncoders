@@ -23,7 +23,7 @@ from config import cfg, process_args
 from data import fetch_dataset, make_data_loader, split_dataset, SplitDataset
 from metrics import Metric
 from fed import Federation
-from utils import processed_folder, save, load, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
+from utils import processed_folder, save, load, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate, concatenate_path
 from logger import make_logger
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -115,6 +115,7 @@ def runExperiment():
     global_scheduler = make_scheduler(global_optimizer, cfg['model_name'])
 
     # Handle resuming the training situation
+    cur_file_path = os.path.abspath(__file__)
     if cfg['resume_mode'] == 1:
         result = resume(cfg['model_tag'])
         last_epoch = result['epoch']
@@ -125,11 +126,17 @@ def runExperiment():
                 global_scheduler.load_state_dict(result['scheduler_state_dict'])
             logger = result['logger']
         else:
-            logger = make_logger('../output/runs/train_{}'.format(cfg['model_tag']))
+            logger_path = '../output/runs/train_{}'.format(cfg['model_tag'])
+            logger = make_logger(logger_path)
     else:
         last_epoch = 1
-        logger = make_logger('../output/runs/train_{}'.format(cfg['model_tag']))
+        # logger_path = concatenate_path([cur_file_path, '..', 'output', 'runs', 'train_{}'.format(cfg['model_tag'])])
+        # logger_path = concatenate_path(['output', 'runs', 'train_{}'.format(cfg['model_tag'])])
+        logger_path = 'output/runs/train_{}'.format(cfg['model_tag'])
+        logger = make_logger(logger_path)
 
+    
+    # a = os.path.join()
     # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
@@ -145,11 +152,15 @@ def runExperiment():
         logger.safe(False)
 
         result = {'cfg': cfg, 'epoch': epoch + 1, 'info': info, 'logger': logger, 'model_state_dict': model_state_dict, 'data_split': data_split, 'data_split_info': data_split_info}
-        save(result, '../output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
+        
+        # checkpoint_path = concatenate_path(['..', 'output', 'model', '{}_checkpoint.pt'.format(cfg['model_tag'])])
+        # best_path = concatenate_path(['..', 'output', 'model', '{}_best.pt'.format(cfg['model_tag'])])
+        checkpoint_path = '../output/model/{}_checkpoint.pt'.format(cfg['model_tag'])
+        best_path = '../output/model/{}_best.pt'.format(cfg['model_tag'])
+        save(result, checkpoint_path)
         if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
             metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
-            shutil.copy('../output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
-                        '../output/model/{}_best.pt'.format(cfg['model_tag']))
+            shutil.copy(checkpoint_path, best_path)
         
         logger.reset()
     logger.safe(False)
@@ -318,6 +329,7 @@ class Local:
         federation.store_local_model(cur_node_index, model)
         federation.store_local_optimizer_state_dict(cur_node_index, copy.deepcopy(optimizer_state_dict))
         
+        # b = next(model.parameters()).device
         local_parameters = model.state_dict()
 
         return local_parameters
