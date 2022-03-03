@@ -142,7 +142,7 @@ def runExperiment():
         logger.safe(True)
         
         global_optimizer_lr = global_optimizer.state_dict()['param_groups'][0]['lr']
-        node_idx, item_iteraction_set = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch, global_optimizer_lr)
+        node_idx, total_item_union = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch, global_optimizer_lr)
         federation.update_global_model_momentum()
         model_state_dict = federation.global_model.state_dict()
         info = test(dataset['test'], data_split['train'], data_split_info, federation, metric, logger, epoch)
@@ -150,10 +150,10 @@ def runExperiment():
         # info = test_batchnorm(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
         global_scheduler.step()
         if cfg['experiment_size'] == 'large':
-            logger.append_compress_item_union(item_iteraction_set, epoch)
+            logger.append_compress_item_union(total_item_union, epoch)
         logger.safe(False)
 
-        result = {'cfg': cfg, 'epoch': epoch + 1, 'info': info, 'logger': logger, 'model_state_dict': model_state_dict, 'data_split': data_split, 'data_split_info': data_split_info}
+        result = {'cfg': cfg, 'epoch': epoch + 1, 'active_node_count': len(node_idx), 'info': info, 'logger': logger, 'model_state_dict': model_state_dict, 'data_split': data_split, 'data_split_info': data_split_info}
         # checkpoint_path = concatenate_path(['..', 'output', 'model', '{}_checkpoint.pt'.format(cfg['model_tag'])])
         # best_path = concatenate_path(['..', 'output', 'model', '{}_best.pt'.format(cfg['model_tag'])])
         if cfg['update_best_model'] == 'global':
@@ -164,7 +164,10 @@ def runExperiment():
             if metric.compare(test_result):
                 metric.update(test_result)
                 shutil.copy(checkpoint_path, best_path)
-        elif cfg['update_best_model'] == 'local':            
+        elif cfg['update_best_model'] == 'local': 
+            checkpoint_path = '../output/model/{}/checkpoint.pt'.format(cfg['model_tag'])         
+            save(result, checkpoint_path)
+
             test_result = logger.mean_for_each_node['test/{}'.format(metric.pivot_name)]
             update_index_list = metric.compare(test_result)
             metric.update(test_result, update_index_list)
@@ -209,12 +212,15 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
     local, node_idx = make_local(dataset, data_split, data_split_info, federation, metric)
     start_time = time.time()
 
+    total_item_union = 0
     for m in range(len(node_idx)):
-        item_iteraction_set = None
+        item_union_set = None
         if cfg['compress_transmission'] == True:
-            item_iteraction_set = federation.calculate_item_iteraction_set(data_split[node_idx[m]])
-        federation.generate_new_global_model_parameter_dict(local[m].train(logger, federation, node_idx[m], global_optimizer_lr), len(node_idx), item_iteraction_set)
+            item_union_set = federation.calculate_item_union_set(node_idx[m], data_split[node_idx[m]])
+            total_item_union += len(item_union_set)
+        federation.generate_new_global_model_parameter_dict(local[m].train(logger, federation, node_idx[m], global_optimizer_lr), len(node_idx), item_union_set)
 
+        
         if m % int((len(node_idx) * cfg['log_interval']) + 1) == 0:
             local_time = (time.time() - start_time) / (m + 1)
             epoch_finished_time = datetime.timedelta(seconds=local_time * (len(node_idx) - m - 1))
@@ -229,7 +235,7 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
 
-    return node_idx, item_iteraction_set
+    return node_idx, total_item_union
 
 
 def test(dataset, data_split, data_split_info, federation, metric, logger, epoch):

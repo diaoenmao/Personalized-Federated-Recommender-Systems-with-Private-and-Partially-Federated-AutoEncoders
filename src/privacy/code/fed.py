@@ -32,6 +32,7 @@ class Federation:
         self.new_global_model_parameter_dict = collections.defaultdict(int)
         self.global_grade_item_for_user = collections.defaultdict(set)
 
+        self.item_union_set_pre_calculated = collections.defaultdict(int)
         # self.batch_normalization_name = {}
         # self.local_scheduler = {}
         # self.partial_average_state_dict = copy.deepcopy(self.global_model.state_dict())
@@ -54,11 +55,15 @@ class Federation:
                 self.global_grade_item_for_user[i].add(item.item())
         return True
 
-    def calculate_item_iteraction_set(self, user_list):
-        item_iteraction_set = set()
+    def calculate_item_union_set(self, node_idx, user_list):
+        if node_idx in self.item_union_set_pre_calculated:
+            return self.item_union_set_pre_calculated[node_idx]
+
+        item_union_set = set()
         for user in user_list:
-            item_iteraction_set = item_iteraction_set | self.global_grade_item_for_user[user]
-        return item_iteraction_set
+            item_union_set = item_union_set | self.global_grade_item_for_user[user]
+        self.item_union_set_pre_calculated[node_idx] = item_union_set
+        return self.item_union_set_pre_calculated[node_idx]
 
     def distribute(self, model):
         model.load_state_dict(copy.deepcopy(self.global_model.state_dict()))  
@@ -140,7 +145,7 @@ class Federation:
             raise ValueError('Not valid federated mode')
         return cur_model
 
-    def generate_new_global_model_parameter_dict(self, model_state_dict, total_client, item_iteraction_set=None):
+    def generate_new_global_model_parameter_dict(self, model_state_dict, total_client, item_union_set=None):
         # print('total_clinet', total_client)
         if cfg['model_name'] == 'ae':
             if cfg['train_mode'] == 'fedavg':
@@ -150,7 +155,7 @@ class Federation:
                             pass
                         elif cfg['federated_mode'] == 'decoder' and 'encoder' in key:
                             pass
-                        elif (key == 'decoder.blocks.3.weight' or key == 'decoder.blocks.3.bias') and item_iteraction_set:
+                        elif (key == 'decoder.blocks.3.weight' or key == 'decoder.blocks.3.bias') and item_union_set:
                             cur_ratio = 1 / total_client
                             global_state_dict = self.global_model.state_dict()
 
@@ -158,7 +163,7 @@ class Federation:
                                 self.new_global_model_parameter_dict[key] = copy.deepcopy(global_state_dict[key].new_zeros(global_state_dict[key].size()))
 
                             for i in range(self.new_global_model_parameter_dict[key].size()[0]):
-                                if i in item_iteraction_set:
+                                if i in item_union_set:
                                     self.new_global_model_parameter_dict[key][i] += (cur_ratio * copy.deepcopy(model_state_dict[key][i]))
                                 else:
                                     self.new_global_model_parameter_dict[key][i] += (cur_ratio * copy.deepcopy(global_state_dict[key][i]))

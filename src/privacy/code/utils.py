@@ -184,19 +184,28 @@ def process_control():
     cfg['data_mode'] = cfg['control']['data_mode']
     cfg['target_mode'] = cfg['control']['target_mode']
     cfg['train_mode'] = cfg['control']['train_mode']
-    cfg['federated_mode'] = cfg['control']['federated_mode']
+    if cfg['control']['federated_mode'] == 'de':
+        cfg['federated_mode'] = 'decoder'
+    elif cfg['control']['federated_mode'] == 'all':
+        cfg['federated_mode'] = 'all'
     cfg['model_name'] = cfg['control']['model_name']
     cfg['info'] = float(cfg['control']['info']) if 'info' in cfg['control'] else 0
     cfg['data_split_mode'] = cfg['control']['data_split_mode']
-    cfg['update_best_model'] = cfg['control']['update_best_model']
+    if cfg['control']['update_best_model'] == 'g':
+        cfg['update_best_model'] = 'global'
+    elif cfg['control']['update_best_model'] == 'l':
+        cfg['update_best_model'] = 'local'
+
     if cfg['control']['num_nodes'] != 'max':
         cfg['num_nodes'] = int(cfg['control']['num_nodes'])
     else:
         cfg['num_nodes'] = 9999999
+
     if 'compress_transmission' in cfg['control']:
         cfg['compress_transmission'] = True if int(cfg['control']['compress_transmission']) == 1 else False
     if 'experiment_size' in cfg['control']:
-        cfg['experiment_size'] = cfg['control']['experiment_size']
+        if cfg['control']['experiment_size'] == 'l':
+            cfg['experiment_size'] = 'large'
     
     cfg['fine_tune'] = False
     if 'fine_tune' in cfg:

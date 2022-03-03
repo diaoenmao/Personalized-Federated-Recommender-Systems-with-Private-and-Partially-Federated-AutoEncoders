@@ -189,10 +189,10 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
 
     start_time = time.time()
     for m in range(num_active_nodes):
-        item_iteraction_set = None
+        item_union_set = None
         if cfg['compress_transmission'] == True:
-            item_iteraction_set = federation.calculate_item_iteraction_set(data_split[node_idx[m]])
-        federation.generate_new_global_model_parameter_dict(local[m].train(logger, federation, node_idx[m], global_optimizer_lr), num_active_nodes, item_iteraction_set)
+            item_union_set = federation.calculate_item_union_set(data_split[node_idx[m]])
+        federation.generate_new_global_model_parameter_dict(local[m].train(logger, federation, node_idx[m], global_optimizer_lr), num_active_nodes, item_union_set)
        
         if m % int((num_active_nodes * cfg['log_interval']) + 1) == 0:
             local_time = (time.time() - start_time) / (m + 1)

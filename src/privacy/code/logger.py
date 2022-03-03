@@ -20,7 +20,7 @@ class Logger:
         self.history = defaultdict(list)
         self.iterator = defaultdict(int)
         self.mean_for_each_node = defaultdict(int)
-        self.compress_item_union_history = {}
+        self.compress_item_union_history = defaultdict(int)
 
     def reset(self):
         self.tracker = defaultdict(int)
@@ -42,8 +42,8 @@ class Logger:
                 self.history[name].append(self.mean[name])
         return
 
-    def append_compress_item_union(self, item_iteraction_set, epoch):
-        self.compress_item_union_history[epoch] = copy.deepcopy(item_iteraction_set)
+    def append_compress_item_union(self, total_item_union, epoch):
+        self.compress_item_union_history[epoch] += total_item_union
         return
 
 

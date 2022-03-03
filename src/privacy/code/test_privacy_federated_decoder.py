@@ -20,7 +20,7 @@ cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='cfg')
 for k in cfg:
     exec('parser.add_argument(\'--{0}\', default=cfg[\'{0}\'], type=type(cfg[\'{0}\']))'.format(k))
-parser.add_argument('--control_name', default=None, type=str)
+# parser.add_argument('--control_name', default=None, type=str)
 args = vars(parser.parse_args())
 process_args(args)
 
@@ -58,21 +58,23 @@ def runExperiment():
     global_model_state_dict = result['model_state_dict']
     last_epoch = result['epoch']
     data_split = result['data_split']
+    active_node_count = result['active_node_count']
     data_split['test'] = copy.deepcopy(data_split['train'])
 
-    print('data_split[train]', data_split['train'])
-    print('data_split[test]', data_split['test'])
+    # print('data_split[train]', data_split['train'])
+    # print('data_split[test]', data_split['test'])
     data_split_info = result['data_split_info']
     model.load_state_dict(global_model_state_dict)
     test_logger = make_logger('../output/runs/test_{}'.format(cfg['model_tag']))
-    test(dataset['test'], data_split['test'], data_split_info, model, metric, test_logger, last_epoch)
+    # test(dataset['test'], data_split['test'], data_split_info, model, metric, test_logger, last_epoch)
 
     result = resume(cfg['model_tag'], load_tag='checkpoint')
     train_logger = result['logger'] if 'logger' in result else None
     if cfg['compress_transmission'] == True:
-        batch_size = cfg[cfg['model_name']]['batch_size']['test']
-        data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[0])}, batch_size)['test']
-        calculate_parameter_size(train_logger, data_loader, model)
+        model.to('cpu')
+        batch_size = {'test': 1}
+        data_loader = make_data_loader({'test': SplitDataset(dataset['test'], data_split['test'][0])}, batch_size)['test']
+        calculate_parameter_size(train_logger, data_loader, model, active_node_count)
 
     print('ggg')
     if cfg['fine_tune'] == True:
@@ -107,6 +109,7 @@ def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
                 if input_size == 0:
                     continue
                 input = to_device(input, cfg['device'])
+                b = next(model.parameters()).device
                 output = model(input)
 
                 if cfg['experiment_size'] == 'large':

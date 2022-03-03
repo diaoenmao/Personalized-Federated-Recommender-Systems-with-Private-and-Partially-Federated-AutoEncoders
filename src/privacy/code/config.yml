@@ -5,14 +5,14 @@ control:
   data_mode: user
   target_mode: explicit
   train_mode: fedavg
-  federated_mode: decoder
+  federated_mode: de
   model_name: ae
   info: 1
   data_split_mode: 'iid'
-  update_best_model: 'global'
+  update_best_model: 'g'
   num_nodes: 100
   compress_transmission: 1
-  experiment_size: 'large'
+  experiment_size: 'l'
   
 # experiment
 fine_tune: 0
