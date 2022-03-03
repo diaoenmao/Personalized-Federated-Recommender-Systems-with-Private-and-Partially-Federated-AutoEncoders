@@ -1,3 +1,4 @@
+from ctypes import sizeof
 import numpy as np
 from collections.abc import Iterator, Iterable
 # a = [0,1,2]
@@ -154,4 +155,6 @@ log("ddd", 1, 1)
 log("aaa", 1, 1)
 log("bbb", 1, 1)
 
-print(get_log(1,1))
+# print(get_log(1,1))
+a = sizeof(float("inf"))
+print(a)

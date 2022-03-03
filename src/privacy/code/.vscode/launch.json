@@ -71,7 +71,7 @@
             "program": "${workspaceFolder}/train_privacy_federated_decoder.py",
             "args": [
                 "--control_name",
-                "ML1M_user_explicit_fedavg_decoder_ae_0_iid_101_0_large",
+                "ML1M_user_explicit_fedavg_decoder_ae_0_iid_global_101_1_large",
                 "--num_workers",
                 "0",
                 "--init_seed",
@@ -96,7 +96,7 @@
             "program": "${workspaceFolder}/test_privacy_federated_decoder.py",
             "args": [
                 "--control_name",
-                "ML1M_user_explicit_fedavg_decoder_ae_0_iid_100_800_5_1_1",
+                "ML1M_user_explicit_fedavg_decoder_ae_0_iid_global_101_1_large",
                 "--fine_tune", 
                 "0",
                 "--fine_tune_lr",
@@ -114,7 +114,7 @@
                 "--log_interval",
                 "0.25",
                 "--device",
-                "cpu",
+                "cuda",
                 "--resume_mode",
                 "0",
                 "--verbose",

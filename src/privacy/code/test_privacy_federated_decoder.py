@@ -10,8 +10,9 @@ import collections
 from config import cfg, process_args
 from data import fetch_dataset, make_data_loader, split_dataset, SplitDataset
 from metrics import Metric
-from utils import save, to_device, process_control, process_dataset, resume, collate, make_optimizer, make_scheduler, fix_parameters, init_final_layer
+from utils import save, load, to_device, process_control, process_dataset, resume, collate, make_optimizer, make_scheduler, fix_parameters, init_final_layer
 from process import draw_movielens_learning_curve
+from summary import calculate_parameter_size
 from logger import make_logger
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -53,11 +54,12 @@ def runExperiment():
         raise ValueError('Not valid target mode')
     
     result = resume(cfg['model_tag'], load_tag='best')
-    print('sssss', result)
+
     global_model_state_dict = result['model_state_dict']
     last_epoch = result['epoch']
     data_split = result['data_split']
     data_split['test'] = copy.deepcopy(data_split['train'])
+
     print('data_split[train]', data_split['train'])
     print('data_split[test]', data_split['test'])
     data_split_info = result['data_split_info']
@@ -67,6 +69,11 @@ def runExperiment():
 
     result = resume(cfg['model_tag'], load_tag='checkpoint')
     train_logger = result['logger'] if 'logger' in result else None
+    if cfg['compress_transmission'] == True:
+        batch_size = cfg[cfg['model_name']]['batch_size']['test']
+        data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[0])}, batch_size)['test']
+        calculate_parameter_size(train_logger, data_loader, model)
+
     print('ggg')
     if cfg['fine_tune'] == True:
         print('ggg1')
@@ -78,15 +85,16 @@ def runExperiment():
     return
 
 def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
-    if cfg['target_mode'] == 'explicit':
-        metric_key = {'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']}
-    elif cfg['target_mode'] == 'implicit':
-        metric_key = {'train': ['Loss', 'MAP'], 'test': ['Loss', 'Accuracy', 'MAP']}
-
     logger.safe(True)
     with torch.no_grad():
-        model.train(False)
+        
         for m in range(len(data_split_info)):
+            if cfg['update_best_model'] == 'local':
+                model_path = '../output/model/{}/{}.pt'.format(cfg['model_tag'], m)
+                model = load(model_path)
+            model.to(cfg['device'])
+            model.train(False)
+
             cur_num_users = data_split_info[m]['num_users']
             batch_size = {'test': min(cur_num_users, cfg[cfg['model_name']]['batch_size']['test'])}
             # print('batch_size', batch_size)
@@ -100,15 +108,16 @@ def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
                     continue
                 input = to_device(input, cfg['device'])
                 output = model(input)
-                # print('input', input, output)
+
+                if cfg['experiment_size'] == 'large':
+                    input = to_device(input, 'cpu')
+                    output = to_device(output, 'cpu')
+
                 evaluation = metric.evaluate(metric.metric_name['test'], input, output)
-                # print('evaluation', evaluation)
-                # if np.isnan(evaluation['RMSE']):
-                #     print('input', input)
-                #     print('output', output)
-                if not np.isnan(evaluation[metric_key['test'][-1]]):
-                    logger.append(evaluation, 'test', input_size)
-            # model.to(cfg['cpu'])
+                logger.append(evaluation, 'test', input_size)
+
+            if cfg['experiment_size'] == 'large':
+                model.to('cpu')
         info = {'info': ['Model: {}'.format(cfg['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)

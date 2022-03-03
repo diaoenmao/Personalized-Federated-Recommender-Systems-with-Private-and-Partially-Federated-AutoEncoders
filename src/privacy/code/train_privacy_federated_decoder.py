@@ -132,7 +132,7 @@ def runExperiment():
         last_epoch = 1
         # logger_path = concatenate_path([cur_file_path, '..', 'output', 'runs', 'train_{}'.format(cfg['model_tag'])])
         # logger_path = concatenate_path(['output', 'runs', 'train_{}'.format(cfg['model_tag'])])
-        logger_path = 'output/runs/train_{}'.format(cfg['model_tag'])
+        logger_path = '../output/runs/train_{}'.format(cfg['model_tag'])
         logger = make_logger(logger_path)
 
     
@@ -142,28 +142,41 @@ def runExperiment():
         logger.safe(True)
         
         global_optimizer_lr = global_optimizer.state_dict()['param_groups'][0]['lr']
-        node_idx = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch, global_optimizer_lr)
+        node_idx, item_iteraction_set = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch, global_optimizer_lr)
         federation.update_global_model_momentum()
         model_state_dict = federation.global_model.state_dict()
         info = test(dataset['test'], data_split['train'], data_split_info, federation, metric, logger, epoch)
 
         # info = test_batchnorm(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
         global_scheduler.step()
+        if cfg['experiment_size'] == 'large':
+            logger.append_compress_item_union(item_iteraction_set, epoch)
         logger.safe(False)
 
         result = {'cfg': cfg, 'epoch': epoch + 1, 'info': info, 'logger': logger, 'model_state_dict': model_state_dict, 'data_split': data_split, 'data_split_info': data_split_info}
-        
         # checkpoint_path = concatenate_path(['..', 'output', 'model', '{}_checkpoint.pt'.format(cfg['model_tag'])])
         # best_path = concatenate_path(['..', 'output', 'model', '{}_best.pt'.format(cfg['model_tag'])])
-        checkpoint_path = '../output/model/{}_checkpoint.pt'.format(cfg['model_tag'])
-        best_path = '../output/model/{}_best.pt'.format(cfg['model_tag'])
-        save(result, checkpoint_path)
-        if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
-            metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
-            shutil.copy(checkpoint_path, best_path)
-        
+        if cfg['update_best_model'] == 'global':
+            checkpoint_path = '../output/model/{}_checkpoint.pt'.format(cfg['model_tag'])
+            best_path = '../output/model/{}_best.pt'.format(cfg['model_tag'])
+            save(result, checkpoint_path)
+            test_result = logger.mean['test/{}'.format(metric.pivot_name)]
+            if metric.compare(test_result):
+                metric.update(test_result)
+                shutil.copy(checkpoint_path, best_path)
+        elif cfg['update_best_model'] == 'local':            
+            test_result = logger.mean_for_each_node['test/{}'.format(metric.pivot_name)]
+            update_index_list = metric.compare(test_result)
+            metric.update(test_result, update_index_list)
+            for node_idx in range(len(update_index_list)):
+                if update_index_list[node_idx] == True:
+                    best_path = '../output/model/{}/{}.pt'.format(cfg['model_tag'], node_idx)
+                    save(federation.load_local_model(node_idx), best_path)
+        else:
+            raise ValueError('Not valid update_best_model way')
+
         logger.reset()
-    logger.safe(False)
+
     return
 
 
@@ -216,7 +229,7 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
 
-    return node_idx
+    return node_idx, item_iteraction_set
 
 
 def test(dataset, data_split, data_split_info, federation, metric, logger, epoch):
@@ -245,8 +258,13 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
                     input = to_device(input, 'cpu')
                     output = to_device(output, 'cpu')
 
-                evaluation = metric.evaluate(metric.metric_name['test'], input, output)
-                logger.append(evaluation, 'test', input_size)
+                if cfg['update_best_model'] == 'global':
+                    evaluation = metric.evaluate(metric.metric_name['test'], input, output)
+                    logger.append(evaluation, 'test', input_size)
+                elif cfg['update_best_model'] == 'local':
+                    evaluation = metric.evaluate(metric.metric_name['test'], input, output, m)
+                    logger.append(evaluation, 'test', input_size)
+
             if cfg['experiment_size'] == 'large':
                 model.to('cpu')
         info = {'info': ['Model: {}'.format(cfg['model_tag']),

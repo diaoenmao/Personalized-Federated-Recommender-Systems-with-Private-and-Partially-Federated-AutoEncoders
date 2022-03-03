@@ -92,6 +92,9 @@ def runExperiment():
     # model is the instance of class AE (in models / ae.py). It contains the training process of 
     #   Encoder and Decoder.
     federation = Federation(data_split_info)
+    federation.create_local_model_and_local_optimizer()
+    if cfg['compress_transmission'] == True:
+        federation.record_global_grade_item_for_user(dataset['train'])
 
     if cfg['target_mode'] == 'explicit':
         # metric / class Metric
@@ -141,11 +144,13 @@ def runExperiment():
         logger.safe(False)
 
         result = {'cfg': cfg, 'epoch': epoch + 1, 'info': info, 'logger': logger, 'model_state_dict': model_state_dict, 'data_split': data_split, 'data_split_info': data_split_info}
-        save(result, '../output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
+
+        checkpoint_path = '../output/model/{}_checkpoint.pt'.format(cfg['model_tag'])
+        best_path = '../output/model/{}_best.pt'.format(cfg['model_tag'])
+        save(result, checkpoint_path)
         if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
             metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
-            shutil.copy('../output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
-                        '../output/model/{}_best.pt'.format(cfg['model_tag']))
+            shutil.copy(checkpoint_path, best_path)
         
         logger.reset()
     logger.safe(False)
@@ -177,19 +182,18 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
         None
     """
 
-    local, node_idx = make_local(dataset, data_split, data_split_info, federation, metric, global_optimizer_lr)
+    local, node_idx = make_local(dataset, data_split, data_split_info, federation, metric)
    
     num_active_nodes = len(node_idx)
     print('num_active_nodes', num_active_nodes)
-    local_parameters = {}
+
     start_time = time.time()
     for m in range(num_active_nodes):
-        # local_parameters[m] = copy.deepcopy(local[m].train(logger))
-        federation.generate_new_global_model_parameter_dict(local[m].train(logger, federation, node_idx[m]), num_active_nodes)
-        # cur_node_index = node_idx[m]
-        # cur_local_model_dict = federation.load_local_model_dict(cur_node_index)
-        # local_parameters.append(copy.deepcopy(cur_local_model_dict['model'].state_dict()))
-
+        item_iteraction_set = None
+        if cfg['compress_transmission'] == True:
+            item_iteraction_set = federation.calculate_item_iteraction_set(data_split[node_idx[m]])
+        federation.generate_new_global_model_parameter_dict(local[m].train(logger, federation, node_idx[m], global_optimizer_lr), num_active_nodes, item_iteraction_set)
+       
         if m % int((num_active_nodes * cfg['log_interval']) + 1) == 0:
             local_time = (time.time() - start_time) / (m + 1)
             epoch_finished_time = datetime.timedelta(seconds=local_time * (num_active_nodes - m - 1))
@@ -204,14 +208,9 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
             
-    # federation.combine(node_idx, local_parameters)
-    return node_idx, local_parameters
+    return node_idx
 
 def test(dataset, data_split, data_split_info, federation, metric, logger, epoch):
-    if cfg['target_mode'] == 'explicit':
-        metric_key = 'RMSE'
-    elif cfg['target_mode'] == 'implicit':
-        metric_key = 'MAP'
 
     with torch.no_grad():
         cur_num_users = data_split_info[0]['num_users']
@@ -219,7 +218,7 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
         model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
             'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items).to(cfg["device"])'.format(cfg['model_name']))
         model = federation.distribute(model)
-        # model.to(cfg['device'])
+        model.to(cfg['device'])
         model.train(False)
 
         for m in range(len(data_split)):
@@ -239,14 +238,16 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
                 input = to_device(input, cfg['device'])
                 output = model(input)
                 # print('input', input, output)
+                if cfg['experiment_size'] == 'large':
+                    input = to_device(input, 'cpu')
+                    output = to_device(output, 'cpu')
+
                 evaluation = metric.evaluate(metric.metric_name['test'], input, output)
-                # print('evaluation', evaluation)
-                # if np.isnan(evaluation['RMSE']):
-                #     print('input', input)
-                #     print('output', output)
-                if not np.isnan(evaluation[metric_key]):
-                    logger.append(evaluation, 'test', input_size)
-            # model.to(cfg['cpu'])
+                logger.append(evaluation, 'test', input_size)
+        
+        if cfg['experiment_size'] == 'large':
+            model.to('cpu')
+
         info = {'info': ['Model: {}'.format(cfg['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
@@ -256,18 +257,15 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
     return info
 
 
-def make_local(dataset, data_split, data_split_info, federation, metric, global_optimizer_lr):
+def make_local(dataset, data_split, data_split_info, federation, metric):
     num_active_nodes = int(np.ceil(cfg[cfg['model_name']]['fraction'] * cfg['num_nodes']))
-    # print('num_active_nodes', num_active_nodes)
     node_idx = torch.arange(cfg['num_nodes'])[torch.randperm(cfg['num_nodes'])[:num_active_nodes]].tolist()
-    # local_parameters, param_idx = federation.distribute(node_idx)
     local = [None for _ in range(num_active_nodes)]
-    # participated_user = []
+
     for m in range(num_active_nodes):
-        # model_rate_m = federation.model_rate[node_idx[m]]
         cur_node_index = node_idx[m]
         user_per_node_i = data_split_info[cur_node_index]['num_users']
-        # participated_user.append(user_per_node_i)
+
         batch_size = {'train': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['train'])}
         data_loader_m = make_data_loader({'train': SplitDataset(dataset, 
             data_split[cur_node_index])}, batch_size)['train']
@@ -278,29 +276,17 @@ def make_local(dataset, data_split, data_split_info, federation, metric, global_
         model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
                 'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items)'.format(cfg['model_name']))
         model = federation.distribute(model)
-
-        # local_optimizer = None
-        # local_scheduler = None
-        # if cfg['optimizer_mode'] == 'local':
-        #     local_optimizer_state_dict = federation.get_local_optimizer_state_dict(cur_node_index, model)
-        #     local_scheduler_state_dict = federation.get_local_scheduler_state_dict(cur_node_index, model)
-
-        # cur_model_dict = federation.load_local_model_dict(cur_node_index)
-        # federation.update_client_parameters_with_global_parameters(cur_model_dict)
-        local[m] = Local(data_loader_m, model, metric, global_optimizer_lr)
+        local[m] = Local(data_loader_m, model, metric)
     return local, node_idx
 
 
 class Local:
-    def __init__(self, data_loader, model, metric, global_optimizer_lr):
+    def __init__(self, data_loader, model, metric):
         self.data_loader = data_loader
         self.model = model
         self.metric = metric
-        self.global_optimizer_lr = global_optimizer_lr
-        # self.local_optimizer_state_dict = local_optimizer_state_dict
-        # self.local_scheduler_state_dict = local_scheduler_state_dict
 
-    def train(self, logger, federation, cur_node_index):
+    def train(self, logger, federation, cur_node_index, global_optimizer_lr):
 
         model = self.model
         model.to(cfg['device'])
@@ -309,31 +295,18 @@ class Local:
         optimizer = None
         scheduler = None
 
-        optimizer = make_optimizer(model, cfg['model_name'])
-        if cfg['store_local_optimizer'] == True:
-            # optimizer = make_optimizer(model, cfg['model_name'])
-            # scheduler = make_scheduler(optimizer, cfg['model_name'])
-            local_optimizer_state_dict = federation.get_local_optimizer(cur_node_index).state_dict()
-            # local_scheduler_state_dict = federation.get_local_scheduler(cur_node_index, model).state_dict()
-            optimizer.load_state_dict(local_optimizer_state_dict)
-            # scheduler.load_state_dict(local_scheduler_state_dict)
-        # elif cfg['optimizer_mode'] == 'global':
-        #     optimizer = make_optimizer(model, cfg['model_name'])
-        if cfg['use_global_optimizer_lr'] == True:
-            optimizer.param_groups[0]['lr'] = self.global_optimizer_lr
-        # print('gggg', self.global_optimizer_lr, optimizer.state_dict())
-        model_name = cfg['model_name']
+        optimizer = make_optimizer(model, cfg['model_name'])      
+        local_optimizer_state_dict = federation.get_local_optimizer_state_dict(cur_node_index) 
+        local_optimizer_state_dict = to_device(local_optimizer_state_dict, cfg['device'])
+        optimizer.load_state_dict(local_optimizer_state_dict) 
+        optimizer.param_groups[0]['lr'] = global_optimizer_lr
         
-        for local_epoch in range(1, cfg[model_name]['local_epoch'] + 1):
-            # print('local', local)
+        for local_epoch in range(1, cfg[cfg['model_name']]['local_epoch'] + 1):
             for i, original_input in enumerate(self.data_loader):
                 input = copy.deepcopy(original_input)
 
                 input = collate(input)
                 input_size = len(input['target_{}'.format(cfg['data_mode'])])
-                # print('input', input)
-                # input_size = len(input)
-                # print('input_size', input_size)
                 if input_size == 0:
                     continue
                 input = to_device(input, cfg['device'])
@@ -348,15 +321,22 @@ class Local:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     # Perform a step of parameter through gradient descent Update
                     optimizer.step()
-              
+
+                if cfg['experiment_size'] == 'large':
+                    input = to_device(input, 'cpu')
+                    output = to_device(output, 'cpu')
+
                 evaluation = self.metric.evaluate(self.metric.metric_name['train'], input, output)
                 logger.append(evaluation, 'train', n=input_size)
-        if scheduler is not None:
-            scheduler.step()
-        if cfg['store_local_optimizer'] == True:
-            federation.store_local_optimizer(cur_node_index, copy.deepcopy(optimizer))
-            # federation.store_local_scheduler(cur_node_index, copy.deepcopy(scheduler))
-        # model.to('cpu')
+        
+        if cfg['experiment_size'] == 'large':
+            model.to('cpu')
+            optimizer_state_dict = optimizer.state_dict()
+            optimizer_state_dict = to_device(optimizer_state_dict, 'cpu')
+
+        federation.store_local_model(cur_node_index, model)
+        federation.store_local_optimizer_state_dict(cur_node_index, copy.deepcopy(optimizer_state_dict))
+        
         local_parameters = model.state_dict()
         
         return local_parameters

@@ -150,8 +150,7 @@ def process_dataset(dataset):
     cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['test'])}
     cfg['num_users'], cfg['num_items'] = dataset['train'].num_users, dataset['train'].num_items
     if cfg['num_nodes'] == 9999999:
-        # cfg['num_nodes'] = cfg['num_users']['data']
-        cfg['num_nodes'] = 100
+        cfg['num_nodes'] = cfg['num_users']['data']
     if cfg['info'] == 1:
         cfg['info_size'] = {}
         # hasattr() determines if the object has corresponding attribute
@@ -189,6 +188,7 @@ def process_control():
     cfg['model_name'] = cfg['control']['model_name']
     cfg['info'] = float(cfg['control']['info']) if 'info' in cfg['control'] else 0
     cfg['data_split_mode'] = cfg['control']['data_split_mode']
+    cfg['update_best_model'] = cfg['control']['update_best_model']
     if cfg['control']['num_nodes'] != 'max':
         cfg['num_nodes'] = int(cfg['control']['num_nodes'])
     else:

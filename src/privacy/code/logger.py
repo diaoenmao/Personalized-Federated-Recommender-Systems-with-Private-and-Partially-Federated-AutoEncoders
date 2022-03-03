@@ -1,8 +1,12 @@
+import copy
+
 from collections import defaultdict
 from collections.abc import Iterable
+from email.policy import default
 from torch.utils.tensorboard import SummaryWriter
 from numbers import Number
 from utils import ntuple, makedir_exist_ok
+from config import cfg
 import datetime
 
 
@@ -15,11 +19,14 @@ class Logger:
         self.mean = defaultdict(int)
         self.history = defaultdict(list)
         self.iterator = defaultdict(int)
+        self.mean_for_each_node = defaultdict(int)
+        self.compress_item_union_history = {}
 
     def reset(self):
         self.tracker = defaultdict(int)
         self.counter = defaultdict(int)
         self.mean = defaultdict(int)
+        self.mean_for_each_node = defaultdict(int)
         return
 
     def safe(self, write):
@@ -34,6 +41,11 @@ class Logger:
             for name in self.mean:
                 self.history[name].append(self.mean[name])
         return
+
+    def append_compress_item_union(self, item_iteraction_set, epoch):
+        self.compress_item_union_history[epoch] = copy.deepcopy(item_iteraction_set)
+        return
+
 
     def append(self, result, tag, n=1, mean=True, is_fine_tune=False):
 
@@ -60,21 +72,33 @@ class Logger:
                         self.counter[name] += n
                         self.mean[name] = ((self.counter[name] - n) * self.mean[name] + result[k]) / self.counter[name]
                 else:
-                    if isinstance(result[k], Number):
-                        self.counter[name] += n
-                        self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]
-                    elif isinstance(result[k], Iterable):
-                        if name not in self.mean:
-                            self.counter[name] = [0 for _ in range(len(result[k]))]
-                            self.mean[name] = [0 for _ in range(len(result[k]))]
-                        _ntuple = ntuple(len(result[k]))
-                        n = _ntuple(n)
-                        for i in range(len(result[k])):
-                            self.counter[name][i] += n[i]
-                            self.mean[name][i] = ((self.counter[name][i] - n[i]) * self.mean[name][i] + n[i] *
-                                                result[k][i]) / self.counter[name][i]
+                    if cfg['update_best_model'] == 'global':
+                        if isinstance(result[k], Number):
+                            self.counter[name] += n
+                            self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]
+                        elif isinstance(result[k], Iterable):
+                            if name not in self.mean:
+                                self.counter[name] = [0 for _ in range(len(result[k]))]
+                                self.mean[name] = [0 for _ in range(len(result[k]))]
+                            _ntuple = ntuple(len(result[k]))
+                            n = _ntuple(n)
+                            for i in range(len(result[k])):
+                                self.counter[name][i] += n[i]
+                                self.mean[name][i] = ((self.counter[name][i] - n[i]) * self.mean[name][i] + n[i] *
+                                                    result[k][i]) / self.counter[name][i]
+                        else:
+                            raise ValueError('Not valid data type')
+                    elif cfg['update_best_model'] == 'local':
+                        node_idx = result['node_idx']
+                        if name not in self.mean_for_each_node:
+                            self.mean_for_each_node[name] = defaultdict(int)
+                        if isinstance(result[k], Number):
+                            self.mean_for_each_node[name][node_idx] = result[k]
+                            # self.counter[name] += n
+                            # self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]
+                        
                     else:
-                        raise ValueError('Not valid data type')
+                        raise ValueError('Not valid update_best_model way')
         return
 
     def write(self, tag, metric_names):

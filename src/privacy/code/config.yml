@@ -9,10 +9,11 @@ control:
   model_name: ae
   info: 1
   data_split_mode: 'iid'
+  update_best_model: 'global'
   num_nodes: 100
   compress_transmission: 1
   experiment_size: 'large'
-
+  
 # experiment
 fine_tune: 0
 fine_tune_lr: 0.1

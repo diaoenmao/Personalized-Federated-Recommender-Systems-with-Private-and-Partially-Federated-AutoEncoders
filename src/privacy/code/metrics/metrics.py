@@ -1,4 +1,5 @@
 import math
+import copy
 import torch
 import numpy as np
 import torch.nn.functional as F
@@ -100,6 +101,9 @@ class Metric(object):
                        'MAP': (lambda input, output: MAP(output['target_rating'], input['target_rating'],
                                                          input['target_user'], input['target_item']))}
 
+        if cfg['update_best_model'] == 'local':
+            self.pivot = [copy.deepcopy(self.pivot) for _ in range(cfg['num_nodes'])]
+
     def make_metric_name(self, metric_name):
         return metric_name
 
@@ -119,21 +123,47 @@ class Metric(object):
             raise ValueError('Not valid data name')
         return pivot, pivot_name, pivot_direction
 
-    def evaluate(self, metric_names, input, output):
+    def evaluate(self, metric_names, input, output, node_idx=None):
         evaluation = {}
         for metric_name in metric_names:
             evaluation[metric_name] = self.metric[metric_name](input, output)
+        if node_idx:
+            evaluation['node_idx'] = node_idx
         return evaluation
 
     def compare(self, val):
-        if self.pivot_direction == 'down':
-            compared = self.pivot > val
-        elif self.pivot_direction == 'up':
-            compared = self.pivot < val
-        else:
-            raise ValueError('Not valid pivot direction')
-        return compared
+        if cfg['update_best_model'] == 'global':
+            if self.pivot_direction == 'down':
+                compared = self.pivot > val
+            elif self.pivot_direction == 'up':
+                compared = self.pivot < val
+            else:
+                raise ValueError('Not valid pivot direction')
+            return compared
+        elif cfg['update_best_model'] == 'local':
+            update_index_list = [False for _ in range(len(self.pivot))]
+            for node_idx in val:
+                compared = False
+                if self.pivot_direction == 'down':
+                    compared = self.pivot > val
+                elif self.pivot_direction == 'up':
+                    compared = self.pivot < val
+                else:
+                    raise ValueError('Not valid pivot direction')
 
-    def update(self, val):
-        self.pivot = val
-        return
+                if compared:
+                    update_index_list[node_idx] = True
+
+            return update_index_list
+
+    def update(self, val, update_index_list=None):
+        if cfg['update_best_model'] == 'global':
+            self.pivot = val
+            return
+        elif cfg['update_best_model'] == 'local':
+            for node_idx in range(len(update_index_list)):
+                if update_index_list[node_idx] == True:
+                    self.pivot[node_idx] = val[node_idx]
+            return
+
+        

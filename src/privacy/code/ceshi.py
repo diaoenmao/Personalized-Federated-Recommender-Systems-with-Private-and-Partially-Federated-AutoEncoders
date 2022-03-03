@@ -175,8 +175,12 @@ def update(self, client):
     return
 import collections
 a = collections.deque()
-
-a.append(2)
-a.append(1)
-b = sorted(a)
+import sys
+a = sys.getsizeof(float("inf"))
+print(a)
+b = sys.getsizeof("1")
 print(b)
+c = sys.getsizeof(1.555)
+print(c)
+d = sys.getsizeof(5.11155555)
+print(d)
