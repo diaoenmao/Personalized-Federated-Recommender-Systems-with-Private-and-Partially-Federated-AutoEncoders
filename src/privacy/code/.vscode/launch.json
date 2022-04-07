@@ -71,7 +71,7 @@
             "program": "${workspaceFolder}/train_privacy_federated_decoder.py",
             "args": [
                 "--control_name",
-                "ML1M_user_explicit_fedavg_decoder_ae_0_iid_global_101_1_large",
+                "ML1M_user_explicit_fedavg_de_ae_0_iid_g_101_1_l",
                 "--num_workers",
                 "0",
                 "--init_seed",
@@ -96,7 +96,7 @@
             "program": "${workspaceFolder}/test_privacy_federated_decoder.py",
             "args": [
                 "--control_name",
-                "ML1M_user_explicit_fedavg_decoder_ae_0_iid_global_101_1_large",
+                "ML1M_user_explicit_fedavg_de_ae_0_iid_g_101_1_l",
                 "--fine_tune", 
                 "0",
                 "--fine_tune_lr",

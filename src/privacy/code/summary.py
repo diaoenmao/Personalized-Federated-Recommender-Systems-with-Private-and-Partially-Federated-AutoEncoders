@@ -7,6 +7,7 @@ from tabulate import tabulate
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
+import collections
 import numpy as np
 from data import fetch_dataset, make_data_loader
 from utils import save, makedir_exist_ok, to_device, process_control, process_dataset, collate
@@ -45,16 +46,25 @@ def runExperiment():
     return
 
 
-def calculate_parameter_size(logger, data_loader, model):
-    summary = summarize(data_loader, model)
+def calculate_parameter_size(logger, data_loader, model, active_node_count):
+    summary, decoder_size, last_layer_size = summarize(data_loader, model)
+    print('summary', summary, decoder_size, last_layer_size)
     content, total = parse_summary(summary)
     print(content)
+    print(total)
     
-    compress_parameter_occupation = {}
-    for key in logger.compress_item_union_history:
-        compress_parameter_occupation[key] = 
+    compress_parameter_ratio_per_epoch = collections.defaultdict(int)
 
-    return compress_parameter_occupation
+    decoder_total_parameters = decoder_size * active_node_count
+    decoder_total_rest_layer_size = (decoder_size - last_layer_size) * active_node_count
+    total_last_layer_parameter = last_layer_size * active_node_count
+    a = logger.compress_item_union_history
+    for epoch, total_item_union in logger.compress_item_union_history.items():
+        compress_ratio = total_item_union / (cfg['num_items']['data'] * active_node_count)
+        compress_decoder_total_parameters = decoder_total_rest_layer_size + compress_ratio * total_last_layer_parameter
+        compress_decoder_ratio = compress_decoder_total_parameters / decoder_total_parameters
+        compress_parameter_ratio_per_epoch[epoch] = compress_decoder_ratio
+    return compress_parameter_ratio_per_epoch
 
 def make_size(input, output):
     if isinstance(input, (tuple, list)):
@@ -83,6 +93,7 @@ def summarize(data_loader, model):
                 summary['count'][module_name] = 1
             else:
                 summary['count'][module_name] += 1
+
             key = str(hash(module))
             if key not in summary['module']:
                 summary['module'][key] = OrderedDict()
@@ -131,23 +142,30 @@ def summarize(data_loader, model):
     model.apply(register_hook)
     for i, input in enumerate(data_loader):
         input = collate(input)
-        input = to_device(input, cfg['device'])
+        # input = to_device(input, cfg['device'])
         model(input)
         break
     for h in hooks:
         h.remove()
     summary['total_num_params'] = 0
     summary['total_num_flops'] = 0
+    decoder_size = 0
+    last_layer_size = 0
     for key in summary['module']:
         num_params = 0
         num_flops = 0
+        module_name = summary['module'][key]['module_name']
         for name in summary['module'][key]['params']:
             num_params += (summary['module'][key]['params'][name]['mask'] > 0).sum().item()
             num_flops += summary['module'][key]['flops']
+        if module_name == 'Linear_3' or module_name == 'GroupNorm_3' or module_name == 'Linear_4':
+            decoder_size += num_params
+        if module_name == 'Linear_4':
+            last_layer_size += num_params
         summary['total_num_params'] += num_params
         summary['total_num_flops'] += num_flops
     summary['total_space'] = summary['total_num_params'] * 32. / 8 / (1024 ** 2.)
-    return summary
+    return summary, decoder_size, last_layer_size
 
 
 def divide_by_unit(value):
