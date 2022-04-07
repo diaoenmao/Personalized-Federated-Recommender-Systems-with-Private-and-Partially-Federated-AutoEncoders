@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {   
+            "name": "Process Data",
+            "type": "python",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "program": "${workspaceFolder}/code/datasets/taobaoclick.py",
+            "args": [
+            ],
+        },
+        {   
             "name": "Train 1M Joint",
             "type": "python",
             "request": "launch",

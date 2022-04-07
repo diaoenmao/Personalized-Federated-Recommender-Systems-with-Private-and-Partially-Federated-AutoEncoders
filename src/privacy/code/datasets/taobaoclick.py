@@ -5,15 +5,17 @@ import math
 import torch
 import random
 from torch.utils.data import Dataset
-from utils import check_exists, makedir_exist_ok, save, load
-from .datasets_utils import download_url, extract_file
+from datasets_utils import download_url, extract_file
 from scipy.sparse import csr_matrix
-from config import cfg
+# from config import cfg
 
-
-class Taobaoclick(Dataset):
+# import sys
+# sys.path.append("../utils")
+# from utils import 
+from utils import check_exists, makedir_exist_ok, save, load
+class taobaoclick(Dataset):
     
-    data_name = 'Taobaoclick'
+    data_name = 'taobaoclick'
     file = [('https://files.grouplens.org/datasets/movielens/ml-1m.zip', 'c4d9eecfca2ab87c1945afe126590906')]
 
     def __init__(self, root, split, data_mode, target_mode, transform=None):
@@ -22,27 +24,28 @@ class Taobaoclick(Dataset):
         self.data_mode = data_mode
         self.target_mode = target_mode
         self.transform = transform
-        if not check_exists(self.processed_folder):
-            self.process()
-        self.data, self.target = load(os.path.join(self.processed_folder, self.target_mode, '{}.pt'.format(self.split)),
-                                      mode='pickle')
-        if self.data_mode == 'user':
-            pass
-        elif self.data_mode == 'item':
-            data_coo = self.data.tocoo()
-            target_coo = self.target.tocoo()
-            self.data = csr_matrix((data_coo.data, (data_coo.col, data_coo.row)),
-                                   shape=(self.data.shape[1], self.data.shape[0]))
-            self.target = csr_matrix((target_coo.data, (target_coo.col, target_coo.row)),
-                                   shape=(self.target.shape[1], self.target.shape[0]))
-        else:
-            raise ValueError('Not valid data mode')
-        # user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
-        # self.user_profile = {'data': user_profile, 'target': user_profile}
-        # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
-        # self.item_attr = {'data': item_attr, 'target': item_attr}
-        self.user_profile = {}
-        self.item_attr = {}
+        self.process()
+        # if not check_exists(self.processed_folder):
+        #     self.process()
+        # self.data, self.target = load(os.path.join(self.processed_folder, self.target_mode, '{}.pt'.format(self.split)),
+        #                               mode='pickle')
+        # if self.data_mode == 'user':
+        #     pass
+        # elif self.data_mode == 'item':
+        #     data_coo = self.data.tocoo()
+        #     target_coo = self.target.tocoo()
+        #     self.data = csr_matrix((data_coo.data, (data_coo.col, data_coo.row)),
+        #                            shape=(self.data.shape[1], self.data.shape[0]))
+        #     self.target = csr_matrix((target_coo.data, (target_coo.col, target_coo.row)),
+        #                            shape=(self.target.shape[1], self.target.shape[0]))
+        # else:
+        #     raise ValueError('Not valid data mode')
+        # # user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
+        # # self.user_profile = {'data': user_profile, 'target': user_profile}
+        # # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
+        # # self.item_attr = {'data': item_attr, 'target': item_attr}
+        # self.user_profile = {}
+        # self.item_attr = {}
 
     def __getitem__(self, index):
         data = self.data[index].tocoo()
@@ -122,19 +125,45 @@ class Taobaoclick(Dataset):
 
     def process(self):
         if not check_exists(self.raw_folder):
-            taobaoclick_data_website = 'https://tianchi.aliyun.com/dataset/dataDetail?dataId=56'
-            print('download data from: ' + taobaoclick_data_website)
+            taobaoclick_data_website = 'https://www.kaggle.com/datasets/pavansanagapati/ad-displayclick-data-on-taobaocom'
+            raise('download data from: ' + taobaoclick_data_website)
             # self.download()
-        train_set, test_set = self.make_explicit_data()
-        save(train_set, os.path.join(self.processed_folder, 'explicit', 'train.pt'), mode='pickle')
-        save(test_set, os.path.join(self.processed_folder, 'explicit', 'test.pt'), mode='pickle')
-        train_set, test_set = self.make_implicit_data()
-        save(train_set, os.path.join(self.processed_folder, 'implicit', 'train.pt'), mode='pickle')
-        save(test_set, os.path.join(self.processed_folder, 'implicit', 'test.pt'), mode='pickle')
+        # self.process_raw_sample()
+        self.process_ad_feature()
+        # self.process_user_profile()
+
+
+
+        # train_set, test_set = self.make_explicit_data()
+        # save(train_set, os.path.join(self.processed_folder, 'explicit', 'train.pt'), mode='pickle')
+        # save(test_set, os.path.join(self.processed_folder, 'explicit', 'test.pt'), mode='pickle')
+        # train_set, test_set = self.make_implicit_data()
+        # save(train_set, os.path.join(self.processed_folder, 'implicit', 'train.pt'), mode='pickle')
+        # save(test_set, os.path.join(self.processed_folder, 'implicit', 'test.pt'), mode='pickle')
         # user_profile, item_attr = self.make_info()
         # save(user_profile, os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
         # save(item_attr, os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         return
+
+    def process_raw_sample(self):
+        data = np.genfromtxt(os.path.join(self.raw_folder, 'raw_sample'), delimiter=',')
+        user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
+        return 
+
+    def process_ad_feature(self):
+        data = np.genfromtxt(os.path.join(self.raw_folder, 'ad_feature'), delimiter=',')
+        user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
+
+        return
+
+    def process_user_profile(self):
+        data = np.genfromtxt(os.path.join(self.raw_folder, 'user_profile'), delimiter='::')
+        user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
+
+        return
+
+
+
 
     def download(self):
         makedir_exist_ok(self.raw_folder)
@@ -224,3 +253,5 @@ class Taobaoclick(Dataset):
         item_attr = genre
         return user_profile, item_attr
 
+if __name__ == 'main':
+    taobaoclick_instance = taobaoclick()

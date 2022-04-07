@@ -9,7 +9,10 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from collections import Counter
-from utils import makedir_exist_ok
+# import sys
+# sys.path.append("../utils")
+# from utils import makedir_exist_ok
+from utils import check_exists, makedir_exist_ok, save, load
 
 IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif']
 
