@@ -12,10 +12,25 @@ from collections import Counter
 # import sys
 # sys.path.append("../utils")
 # from utils import makedir_exist_ok
-from utils import check_exists, makedir_exist_ok, save, load
+from utils import makedir_exist_ok
 
 IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif']
 
+# def makedir_exist_ok(path):
+#     try:
+#         os.makedirs(path)
+#     except OSError as e:
+#         if e.errno == errno.EEXIST:
+#             pass
+#         else:
+#             raise
+#     return
+
+def change_to_absolute_path(path):
+    return os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', path)
+
+def if_value_is_nan(value):
+    return value == np.nan
 
 def find_classes(dir):
     classes = [d.name for d in os.scandir(dir) if d.is_dir()]

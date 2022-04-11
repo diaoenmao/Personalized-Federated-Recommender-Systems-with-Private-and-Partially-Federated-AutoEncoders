@@ -43,7 +43,7 @@ Raises:
 if 'cfg' not in globals():
     
     # with用于创建一个临时的运行环境，运行环境中的代码执行完后自动安全退出环境。
-    with open('config.yml', 'r') as f:
+    with open('./code/config.yml', 'r') as f:
         # cfg: 字典结构，内有control（sub_dict)
         # {'control': {'data_name': 'ML100K', 'data_mode': 'user', 'target_mode': 'implicit', 'model_name': 'ae', 'info': 1, 'data_split_mode': 'random-2', 'ar': 'constant-0.1', 'aw': 'constant', 'match_rate': 1}, 
         # 'num_workers': 0, 'init_seed': 0, 'num_experiments': 1, 'log_interval': 0.25, 'device': 'cuda', 'world_size': 1, 'resume_mode': 0, 'verbose': False}

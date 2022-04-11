@@ -18,7 +18,15 @@ def concatenate_path(path_item_list):
     
     return res
 
+def change_to_absolute_path(path):
+    return os.path.join(os.path.abspath(os.path.dirname(__file__)), path)
+    
 def check_exists(path):
+    path = change_to_absolute_path(path)
+    # print('zheli', path, os.path.exists(path))
+    # print('sadfas', os.path.exists(os.path.join('.', 'data', 'ML1M', 'raw')), os.path.exists(os.path.join('./data/ML1M', 'processed')))
+    # print('wenjianjia', os.path.abspath(os.path.dirname(__file__)))
+    # print(os.listdir(path))
     return os.path.exists(path)
 
 
@@ -224,8 +232,22 @@ def process_control():
     # Add size of layer of encoder and decoder
     cfg['ae'] = {'encoder_hidden_size': [256, 128], 'decoder_hidden_size': [128, 256]}
     # Add batch_size
-    batch_size = {'user': {'ML100K': 100, 'ML1M': 500, 'ML10M': 5000, 'ML20M': 5000, 'NFP': 5000},
-                'item': {'ML100K': 100, 'ML1M': 500, 'ML10M': 1000, 'ML20M': 1000, 'NFP': 1000}}
+    batch_size = {'user': {
+                    'ML100K': 100, 
+                    'ML1M': 500, 
+                    'ML10M': 5000, 
+                    'ML20M': 5000, 
+                    'taobaoclick_small': 100,
+                    'taobaoclick_medium': 500,
+                    'taobaoclick_large': 5000},
+                'item': {
+                    'ML100K': 100, 
+                    'ML1M': 500, 
+                    'ML10M': 1000, 
+                    'ML20M': 1000, 
+                    'taobaoclick_small': 100,
+                    'taobaoclick_medium': 500,
+                    'taobaoclick_large': 5000}}
 
     # add parameter to model
     # Example: cfg['model_name']: ae         
@@ -241,8 +263,23 @@ def process_control():
             cfg[model_name]['lr'] = 1e-3
             cfg[model_name]['scheduler_name'] = 'None'
         else:
-            batch_size = {'user': {'ML100K': 5, 'ML1M': 10, 'ML10M': 10, 'ML20M': 10, 'NFP': 10},
-                'item': {'ML100K': 5, 'ML1M': 10, 'ML10M': 10, 'ML20M': 10, 'NFP': 10}}
+            batch_size = {'user': {
+                            'ML100K': 5, 
+                            'ML1M': 10, 
+                            'ML10M': 10, 
+                            'ML20M': 10, 
+                            'taobaoclick_small': 10,
+                            'taobaoclick_medium': 10,
+                            'taobaoclick_large': 10,},
+                        'item': {
+                            'ML100K': 5, 
+                            'ML1M': 10, 
+                            'ML10M': 10, 
+                            'ML20M': 10, 
+                            'NFP': 10, 
+                            'taobaoclick_small': 10,
+                            'taobaoclick_medium': 10,
+                            'taobaoclick_large': 10}}
             cfg[model_name]['fraction'] = 0.1
             cfg[model_name]['local_epoch'] = local_epoch
             cfg[model_name]['optimizer_name'] = 'SGD'

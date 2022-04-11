@@ -1,7 +1,7 @@
 ---
 # control
 control:
-  data_name: ML100K
+  data_name: taobaoclick_small
   data_mode: user
   target_mode: explicit
   train_mode: fedavg

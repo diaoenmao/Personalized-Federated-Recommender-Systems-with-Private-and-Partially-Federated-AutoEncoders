@@ -1,3 +1,4 @@
+import os
 import copy
 import torch
 import numpy as np
@@ -141,12 +142,37 @@ def fetch_dataset(data_name, model_name=None, verbose=True):
     dataset = {}
     if verbose:
         print('fetching data {}...'.format(data_name))
-    root = './data/{}'.format(data_name)
-    if data_name in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'NFP']:
-        
+    
+    root = os.path.join('data', '{}'.format(data_name))
+    # root = './data/{}'.format(data_name)
+    if data_name in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'taobaoclick_small', 'taobaoclick_medium', 'taobaoclick_large']:
+        if data_name in ['taobaoclick_small', 'taobaoclick_medium', 'taobaoclick_large']:
+            root = os.path.join('data', 'taobaoclick')
         # initialize the corresponding class of data_name in datasets / movielens.py
         # put the corresponding class instance in dataset['train']
         # put the corresponding class instance in dataset['test']
+        # if data_name == 'taobaoclick_small':
+        #     dataset['train'] = eval(
+        #         'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
+        #         'target_mode=cfg["target_mode"])'.format(data_name))
+        #     dataset['test'] = eval(
+        #         'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
+        #         'target_mode=cfg["target_mode"], )'.format(data_name))
+        # elif data_name == 'taobaoclick_medium':
+        #     dataset['train'] = eval(
+        #         'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
+        #         'target_mode=cfg["target_mode"])'.format(data_name))
+        #     dataset['test'] = eval(
+        #         'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
+        #         'target_mode=cfg["target_mode"])'.format(data_name))
+        # elif data_name == 'taobaoclick_large':
+        #     dataset['train'] = eval(
+        #         'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
+        #         'target_mode=cfg["target_mode"])'.format(data_name))
+        #     dataset['test'] = eval(
+        #         'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
+        #         'target_mode=cfg["target_mode"])'.format(data_name))
+        # else:
         dataset['train'] = eval(
             'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
             'target_mode=cfg["target_mode"])'.format(data_name))

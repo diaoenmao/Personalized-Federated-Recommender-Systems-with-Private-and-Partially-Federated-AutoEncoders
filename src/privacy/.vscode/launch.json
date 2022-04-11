@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "console": "integratedTerminal",
-            "program": "${workspaceFolder}/code/datasets/taobaoclick.py",
+            "program": "${workspaceFolder}/code/test_dataset.py",
             "args": [
             ],
         },

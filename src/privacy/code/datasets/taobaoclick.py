@@ -4,8 +4,10 @@ import os
 import math
 import torch
 import random
+import pandas as pd
 from torch.utils.data import Dataset
-from datasets_utils import download_url, extract_file
+
+from .datasets_utils import download_url, extract_file, if_value_is_nan, change_to_absolute_path
 from scipy.sparse import csr_matrix
 # from config import cfg
 
@@ -13,7 +15,8 @@ from scipy.sparse import csr_matrix
 # sys.path.append("../utils")
 # from utils import 
 from utils import check_exists, makedir_exist_ok, save, load
-class taobaoclick(Dataset):
+
+class taobaoclick_small(Dataset):
     
     data_name = 'taobaoclick'
     file = [('https://files.grouplens.org/datasets/movielens/ml-1m.zip', 'c4d9eecfca2ab87c1945afe126590906')]
@@ -24,6 +27,8 @@ class taobaoclick(Dataset):
         self.data_mode = data_mode
         self.target_mode = target_mode
         self.transform = transform
+        self.selected_user_id_num = 6000
+        self.selected_ad_id_num = 3000
         self.process()
         # if not check_exists(self.processed_folder):
         #     self.process()
@@ -117,53 +122,224 @@ class taobaoclick(Dataset):
 
     @property
     def processed_folder(self):
+        # return os.path.join(self.root, 'processed')
         return os.path.join(self.root, 'processed')
 
     @property
     def raw_folder(self):
         return os.path.join(self.root, 'raw')
 
+    @property
+    def rough_process_folder(self):
+        return os.path.join(self.root, 'rough_process')
+
+    def select_user_id(self):
+        
+        user_profile_data = pd.read_csv(change_to_absolute_path(os.path.join(self.rough_process_folder, 'rough_process_user_profile.csv')), delimiter=',',
+                                   names=['user_id', 'cms_segid', 'cms_group_id', 'gender', 'age_level', 'consumption_level', 
+                                          'shopping_level', 'is_college_student', 'city_level'], encoding="latin", engine='python')
+
+        # user_profile_data['user_id'].iloc(0)
+        user_id = user_profile_data['user_id'].to_numpy().astype(np.int64)
+        if self.selected_user_id_num < 1 or self.selected_user_id_num > len(user_id):
+            raise ValueError('Please input correct selected_user_id_num')
+        user_id_index = [i for i in range(len(user_id))]  
+        selected_user_id_index = random.sample(user_id_index, self.selected_user_id_num)
+        selected_user_id = user_id[selected_user_id_index]
+
+        user_profile_data = user_profile_data[user_profile_data.user_id.isin(selected_user_id)]
+        return user_profile_data
+    
+    def select_ad_id(self):
+        ad_feature_data = pd.read_csv(change_to_absolute_path(os.path.join(self.rough_process_folder, 'rough_process_ad_feature.csv')), delimiter=',',
+                                   names=['ad_id', 'category_id', 'campaign_id', 'customer_id', 'brand', 'price'], encoding="latin", engine='python')
+        
+        ad_id = ad_feature_data['ad_id'].to_numpy().astype(np.int64)
+        if self.selected_ad_id_num < 1 or self.selected_ad_id_num > len(ad_id):
+            raise ValueError('Please input correct selected_ad_id_num')
+        
+        ad_id_index = [i for i in range(len(ad_id))]  
+        selected_ad_id_index = random.sample(ad_id_index, self.selected_ad_id_num)
+        selected_ad_id = ad_id[selected_ad_id_index]
+
+        ad_feature_data = ad_feature_data[ad_feature_data.ad_id.isin(selected_ad_id)]
+        return ad_feature_data
+
+    def select_raw_sample(self, user_profile_data, ad_feature_data):
+        
+        selected_user_id = user_profile_data['user_id']
+        selected_ad_id = ad_feature_data['ad_id']
+
+        raw_sample_data = pd.read_csv(change_to_absolute_path(os.path.join(self.rough_process_folder, 'rough_process_raw_sample.csv')), delimiter=',',
+                                   names=['user_id', 'time_stamp', 'ad_id', 'pid', 'noclk', 'clk'], encoding="latin", engine='python')
+        raw_sample_data = raw_sample_data[raw_sample_data.user_id.isin(selected_user_id) and raw_sample_data.ad_id.isin(selected_ad_id)]
+        return raw_sample_data
+
     def process(self):
+        a = self.raw_folder
+        res = check_exists(self.raw_folder)
         if not check_exists(self.raw_folder):
             taobaoclick_data_website = 'https://www.kaggle.com/datasets/pavansanagapati/ad-displayclick-data-on-taobaocom'
-            raise('download data from: ' + taobaoclick_data_website)
+            raise ValueError('download data from: ' + taobaoclick_data_website)
             # self.download()
-        # self.process_raw_sample()
-        self.process_ad_feature()
-        # self.process_user_profile()
+        
+        # Rough process the taobaoclick.csv
+        if not check_exists(self.rough_process_folder):
+            self.rought_process()
 
+        user_profile_data = self.select_user_id()
+        ad_feature_data = self.select_ad_id()
+        raw_sample_data = self.select_raw_sample(user_profile_data, ad_feature_data)
 
-
-        # train_set, test_set = self.make_explicit_data()
-        # save(train_set, os.path.join(self.processed_folder, 'explicit', 'train.pt'), mode='pickle')
-        # save(test_set, os.path.join(self.processed_folder, 'explicit', 'test.pt'), mode='pickle')
-        # train_set, test_set = self.make_implicit_data()
-        # save(train_set, os.path.join(self.processed_folder, 'implicit', 'train.pt'), mode='pickle')
-        # save(test_set, os.path.join(self.processed_folder, 'implicit', 'test.pt'), mode='pickle')
-        # user_profile, item_attr = self.make_info()
-        # save(user_profile, os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
-        # save(item_attr, os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
+        train_set, test_set = self.make_implicit_data(user_profile_data, ad_feature_data, raw_sample_data)
+        save(train_set, os.path.join(self.processed_folder, 'implicit', 'train.pt'), mode='pickle')
+        save(test_set, os.path.join(self.processed_folder, 'implicit', 'test.pt'), mode='pickle')
+        user_profile, item_attr = self.make_info()
+        save(user_profile, os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
+        save(item_attr, os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         return
 
-    def process_raw_sample(self):
-        data = np.genfromtxt(os.path.join(self.raw_folder, 'raw_sample'), delimiter=',')
-        user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
-        return 
+    def rought_process(self):
+        picked_user_id = self.rough_process_user_profile()
+        self.rough_process_raw_sample(picked_user_id)
+        self.rough_process_ad_feature()
 
-    def process_ad_feature(self):
-        data = np.genfromtxt(os.path.join(self.raw_folder, 'ad_feature'), delimiter=',')
-        user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
+    def rough_process_user_profile(self):
+        '''
+            userid: 脱敏过的用户ID
+            cms_segid: 微群ID
+            cms_group_id: cms_group_id
+            gender: 性别 1:男,2:女；
+            age_level: 年龄层次
+            consumption_level: 1: 低档, 2: 中档, 3: 高档
+            shopping_level: 购物深度, 1:浅层用户,2:中度用户,3:深度用户
+            is_college_student: 1:是,0:否
+            city_level: 城市层级
+        '''
+        print('Start rough process user_profile.csv')
+        data = pd.read_csv(change_to_absolute_path(os.path.join(self.raw_folder, 'user_profile.csv')), delimiter=',',
+                                   names=['user_id', 'cms_segid', 'cms_group_id', 'gender', 'age_level', 'consumption_level', 
+                                          'shopping_level', 'is_college_student', 'city_level'], encoding="latin", engine='python', skiprows=1)
 
+        # data = pd.read_csv(change_to_absolute_path(os.path.join(self.raw_folder, 'user_profile.csv')), delimiter=',',
+        #                         names=['user_id'], encoding="latin", engine='python', skiprows=1, usecols=[0])
+
+        # data = pd.read_csv(change_to_absolute_path(os.path.join(self.raw_folder, 'user_profile.csv')), 
+        #                            encoding="latin", engine='python', skiprows=1)
+
+        # for i in range(10):
+        # print(data.iloc[0])
+        print('total_user_count: ', len(data['user_id']))
+
+        # delete rows that contain missing value
+        data = data.dropna(axis=0)
+
+       
+        # user_id, cms_segid, cms_group_id, gender, age_level, consumption_level, shopping_level, is_college_student, city_level = (
+        #     data['user_id'].to_numpy().astype(np.int64), 
+        #     data['cms_segid'].to_numpy().astype(np.int64), 
+        #     data['cms_group_id'].to_numpy().astype(np.int64),
+        #     data['gender'].to_numpy().astype(np.int64),
+        #     data['age_level'].to_numpy().astype(np.int64),
+        #     data['consumption_level'].to_numpy().astype(np.int64),
+        #     data['shopping_level'].to_numpy().astype(np.int64),
+        #     data['is_college_student'].to_numpy().astype(np.int64),
+        #     data['city_level'].to_numpy().astype(np.int64))
+
+        user_id = data['user_id'].to_numpy().astype(np.int64)
+        unique_user_id_count = len(user_id)
+        print('unique_user_id_count: ', unique_user_id_count)
+        print('user_containing_all_information_count: ', unique_user_id_count)
+
+        data = pd.DataFrame(data)
+        makedir_exist_ok(change_to_absolute_path(self.rough_process_folder))
+        data.to_csv(change_to_absolute_path(os.path.join(self.rough_process_folder, 'rough_process_user_profile.csv')), encoding='latin', index=False)
+
+        print('Rough process user_profile.csv done')
+
+        picked_user_id = user_id
+        return picked_user_id
+
+    def rough_process_raw_sample(self, picked_user_id):
+        '''
+        user_id: 脱敏过的用户ID;
+        adgroup_id: 脱敏过的广告单元ID;
+        time_stamp: 时间戳；
+        pid: 资源位；
+        noclk: 为1代表没有点击, 为0代表点击;
+        clk: 为0代表没有点击, 为1代表点击;
+        '''
+        print('Start rough process raw_sample.csv')
+        # data = pd.read_csv(change_to_absolute_path(os.path.join(self.raw_folder, 'raw_sample.csv')), delimiter=',',
+        #                            names=['user_id', 'ad_id', 'time_stamp', 'pid', 'noclk', 'clk'], encoding="latin", engine='python', skiprows=1)
+
+        # data = pd.read_csv(change_to_absolute_path(os.path.join(self.raw_folder, 'raw_sample.csv')), delimiter=',',
+        #                            names=['user_id'], encoding="latin", engine='python', skiprows=1, usecols=[0])
+
+        data = pd.read_csv(change_to_absolute_path(os.path.join(self.raw_folder, 'raw_sample.csv')), delimiter=',',
+                                   names=['user_id', 'time_stamp', 'ad_id', 'pid', 'noclk', 'clk'], encoding="latin", engine='python', skiprows=1)
+
+        print('raw_sample_total_row', len(data['user_id']))
+        print('sadfasdfassass')
+        # delete rows that contain missing value
+        # data = data.dropna(axis=0)
+        # user_id = data['user_id'].to_numpy().astype(np.int64)
+        # user_id, ad_id, time_stamp, pid, noclk, clk = (
+        #     data['user_id'].to_numpy().astype(np.int64), 
+        #     data['ad_id'].to_numpy().astype(np.int64), 
+        #     data['time_stamp'].to_numpy().astype(np.int64),
+        #     data['pid'].to_numpy().astype(np.int64),
+        #     data['noclk'].to_numpy().astype(np.int64),
+        #     data['clk'].to_numpy().astype(np.int64))
+
+        data = data[data.user_id.isin(picked_user_id)]
+
+
+        # data = pd.read_csv(change_to_absolute_path(os.path.join(self.raw_folder, 'raw_sample.csv')), delimiter=',',
+        #                            names=['user_id', 'ad_id', 'time_stamp', 'pid', 'noclk', 'clk'], encoding="latin", engine='python', skiprows=skiprows)
+        print('rough_process_raw_sample_total_row', len(data))
+        data = pd.DataFrame(data)
+        print('iiiiii')
+        data.to_csv(change_to_absolute_path(os.path.join(self.rough_process_folder, 'rough_process_raw_sample.csv')), encoding='latin', index=False)
+
+        print('Rough process raw_sample.csv done')
         return
 
-    def process_user_profile(self):
-        data = np.genfromtxt(os.path.join(self.raw_folder, 'user_profile'), delimiter='::')
-        user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
+    def rough_process_ad_feature(self):
+        '''
+            ad_id: 脱敏过的广告ID
+            category_id: 脱敏过的商品类目ID
+            campaign_id: 脱敏过的广告计划ID
+            customer_id: 脱敏过的广告主ID
+            brand: 脱敏过的品牌ID
+            price: 宝贝的价格
+        '''
+        print('Start Rough process ad_feature.csv')
+        data = pd.read_csv(change_to_absolute_path(os.path.join(self.raw_folder, 'ad_feature.csv')), delimiter=',',
+                                   names=['ad_id', 'category_id', 'campaign_id', 'customer_id', 'brand', 'price'],
+                                   encoding="latin", engine='python', skiprows=1)
+
+        data = pd.DataFrame(data)
+        print('iiiiii')
+        data.to_csv(change_to_absolute_path(os.path.join(self.rough_process_folder, 'rough_process_ad_feature.csv')), encoding='latin', index=False)
+
+        print('Rough process ad_feature.csv done')
+        # delete rows that contain missing value
+        # data = data.dropna(axis=0)
+
+
+        # ad_id corresponds to a commodity
+        # a commodity belongs to a ad_category_id
+        # a commodity belongs to a brand_id
+        # ad_id, category_id, campaign_id, customer_id, brand, price = (
+        #     data['ad_id'].astype(np.int64), 
+        #     data['category_id'].astype(np.int64), 
+        #     data['campaign_id'].astype(np.int64),
+        #     data['customer_id'].astype(np.int64),
+        #     data['brand'].astype(np.int64),
+        #     data['price'].astype(np.int64))
 
         return
-
-
-
 
     def download(self):
         makedir_exist_ok(self.raw_folder)
@@ -199,25 +375,45 @@ class taobaoclick(Dataset):
         test_target = csr_matrix((test_rating, (test_user, test_item)), shape=(M, N))
         return (train_data, train_target), (test_data, test_target)
 
-    def make_implicit_data(self):
-        data = np.genfromtxt(os.path.join(self.raw_folder, 'ml-1m', 'ratings.dat'), delimiter='::')
-        user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
+    def make_implicit_data(self, user_profile_data, ad_feature_data, raw_sample_data):
+        # data = np.genfromtxt(os.path.join(self.raw_folder, 'ml-1m', 'ratings.dat'), delimiter='::')
+        # user, item, rating = data[:, 0].astype(np.int64), data[:, 1].astype(np.int64), data[:, 2].astype(np.float32)
+        # user_id, user_inv = np.unique(user, return_inverse=True)
+        # item_id, item_inv = np.unique(item, return_inverse=True)
+        # M, N = len(user_id), len(item_id)
+        # user_id_map = {user_id[i]: i for i in range(len(user_id))}
+        # item_id_map = {item_id[i]: i for i in range(len(item_id))}
+        # user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(user.shape)
+        # item = np.array([item_id_map[i] for i in item_id], dtype=np.int64)[item_inv].reshape(item.shape)
+
+        # sort the raw_sample_data by clk value
+        raw_sample_data = raw_sample_data.sort_values('clk', axis=0)
+        # if user made judgement on a ad many times, we take the last one
+        # This will cover the situation the user clicks the ad since the raw_sample_data is sorted
+        raw_sample_data = raw_sample_data[not raw_sample_data.duplicated('ad_id', keep='last')]
+
+        user = user_profile_data['user_id'].to_numpy()        
+        item = raw_sample_data['ad_id'].to_numpy()
+        rating = raw_sample_data['clk'].to_numpy().astype(np.int64)
+
         user_id, user_inv = np.unique(user, return_inverse=True)
         item_id, item_inv = np.unique(item, return_inverse=True)
         M, N = len(user_id), len(item_id)
         user_id_map = {user_id[i]: i for i in range(len(user_id))}
         item_id_map = {item_id[i]: i for i in range(len(item_id))}
-        user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(user.shape)
-        item = np.array([item_id_map[i] for i in item_id], dtype=np.int64)[item_inv].reshape(item.shape)
-        idx = np.random.permutation(user.shape[0])
-        num_train = int(user.shape[0] * 0.9)
+        user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(len(user))
+        item = np.array([item_id_map[i] for i in item_id], dtype=np.int64)[item_inv].reshape(len(item))
+
+        idx = np.random.permutation(N)
+        num_train = int(N * 0.9)
         train_idx, test_idx = idx[:num_train], idx[num_train:]
+        
         train_user, train_item, train_rating = user[train_idx], item[train_idx], rating[train_idx]
-        train_rating[train_rating < 3.5] = 0
-        train_rating[train_rating >= 3.5] = 1
+        # train_rating[train_rating < 3.5] = 0
+        # train_rating[train_rating >= 3.5] = 1
         test_user, test_item, test_rating = user[test_idx], item[test_idx], rating[test_idx]
-        test_rating[test_rating < 3.5] = 0
-        test_rating[test_rating >= 3.5] = 1
+        # test_rating[test_rating < 3.5] = 0
+        # test_rating[test_rating >= 3.5] = 1
         train_data = csr_matrix((train_rating, (train_user, train_item)), shape=(M, N))
         train_target = train_data
         test_data = train_data
@@ -253,5 +449,3 @@ class taobaoclick(Dataset):
         item_attr = genre
         return user_profile, item_attr
 
-if __name__ == 'main':
-    taobaoclick_instance = taobaoclick()
