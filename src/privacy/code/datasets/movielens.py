@@ -21,7 +21,9 @@ class ML100K(Dataset):
         self.split = split
         self.data_mode = data_mode
         self.target_mode = target_mode
+        print(f'target+mode!!: {target_mode}')
         self.transform = transform
+        # train_set, test_set = self.make_explicit_data()
         if not check_exists(self.processed_folder):
             self.process()
         self.data, self.target = load(os.path.join(self.processed_folder, self.target_mode, '{}.pt'.format(self.split)),

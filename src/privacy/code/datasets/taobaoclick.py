@@ -1,3 +1,4 @@
+# from curses import raw
 import numpy as np
 import scipy
 import os
@@ -16,7 +17,7 @@ from scipy.sparse import csr_matrix
 # from utils import 
 from utils import check_exists, makedir_exist_ok, save, load
 
-class taobaoclick_small(Dataset):
+class taobaoclicksmall(Dataset):
     
     data_name = 'taobaoclick'
     file = [('https://files.grouplens.org/datasets/movielens/ml-1m.zip', 'c4d9eecfca2ab87c1945afe126590906')]
@@ -135,12 +136,13 @@ class taobaoclick_small(Dataset):
 
     def select_user_id(self):
         
+        print('Start selecting user id')
         user_profile_data = pd.read_csv(change_to_absolute_path(os.path.join(self.rough_process_folder, 'rough_process_user_profile.csv')), delimiter=',',
                                    names=['user_id', 'cms_segid', 'cms_group_id', 'gender', 'age_level', 'consumption_level', 
                                           'shopping_level', 'is_college_student', 'city_level'], encoding="latin", engine='python')
 
         # user_profile_data['user_id'].iloc(0)
-        user_id = user_profile_data['user_id'].to_numpy().astype(np.int64)
+        user_id = user_profile_data['user_id'].to_numpy()
         if self.selected_user_id_num < 1 or self.selected_user_id_num > len(user_id):
             raise ValueError('Please input correct selected_user_id_num')
         user_id_index = [i for i in range(len(user_id))]  
@@ -151,10 +153,12 @@ class taobaoclick_small(Dataset):
         return user_profile_data
     
     def select_ad_id(self):
+
+        print('Start selecting ad id')
         ad_feature_data = pd.read_csv(change_to_absolute_path(os.path.join(self.rough_process_folder, 'rough_process_ad_feature.csv')), delimiter=',',
                                    names=['ad_id', 'category_id', 'campaign_id', 'customer_id', 'brand', 'price'], encoding="latin", engine='python')
         
-        ad_id = ad_feature_data['ad_id'].to_numpy().astype(np.int64)
+        ad_id = ad_feature_data['ad_id'].to_numpy()
         if self.selected_ad_id_num < 1 or self.selected_ad_id_num > len(ad_id):
             raise ValueError('Please input correct selected_ad_id_num')
         
@@ -167,13 +171,44 @@ class taobaoclick_small(Dataset):
 
     def select_raw_sample(self, user_profile_data, ad_feature_data):
         
-        selected_user_id = user_profile_data['user_id']
-        selected_ad_id = ad_feature_data['ad_id']
+        print('Start selecting raw sample')
+        selected_user_id = user_profile_data['user_id'].to_numpy()
+        selected_ad_id = ad_feature_data['ad_id'].to_numpy()
 
         raw_sample_data = pd.read_csv(change_to_absolute_path(os.path.join(self.rough_process_folder, 'rough_process_raw_sample.csv')), delimiter=',',
                                    names=['user_id', 'time_stamp', 'ad_id', 'pid', 'noclk', 'clk'], encoding="latin", engine='python')
-        raw_sample_data = raw_sample_data[raw_sample_data.user_id.isin(selected_user_id) and raw_sample_data.ad_id.isin(selected_ad_id)]
+
+        raw_data_based_on_user_id = raw_sample_data[raw_sample_data.user_id.isin(selected_user_id)]
+        raw_data_based_on_user_id = raw_data_based_on_user_id.sort_values('clk', axis=0)
+        # if user made judgement on a ad many times, we take the last one
+        # This will cover the situation the user clicks the ad since the raw_sample_data is sorted
+        raw_data_based_on_user_id = raw_data_based_on_user_id.drop_duplicates(['user_id', 'ad_id'], keep='last')
+        ad_id = raw_data_based_on_user_id['ad_id'].to_numpy()
+        unique_item_count = len(set(ad_id))
+        print('unique_item_count', unique_item_count)
+        print('row_count', len( raw_data_based_on_user_id['user_id'].to_numpy()))
+
+        raw_data_based_on_ad_id = raw_sample_data[raw_sample_data.ad_id.isin(selected_ad_id)]
+        user_id = raw_data_based_on_ad_id['user_id'].to_numpy()
+        unique_user_count = len(set(user_id))
+        print('unique_user_count', unique_user_count)
+
+        raw_sample_data = raw_sample_data[raw_sample_data.user_id.isin(selected_user_id) & raw_sample_data.ad_id.isin(selected_ad_id)]
+        raw_sample_data = raw_sample_data.sort_values('clk', axis=0)
+        # if user made judgement on a ad many times, we take the last one
+        # This will cover the situation the user clicks the ad since the raw_sample_data is sorted
+        raw_sample_data = raw_sample_data.drop_duplicates(['user_id', 'ad_id'], keep='last')
+        print('interaction', len(raw_sample_data['user_id']))
         return raw_sample_data
+
+    # def ceshi(self):
+    #     ad_feature_data = pd.read_csv(change_to_absolute_path(os.path.join(self.rough_process_folder, 'rough_process_ad_feature.csv')), delimiter=',',
+    #                             names=['ad_id', 'category_id', 'campaign_id', 'customer_id', 'brand', 'price'], encoding="latin", engine='python', nrows=10)
+        
+    #     temp1 = ad_feature_data[ad_feature_data.ad_id.isin([63133])]
+    #     temp2 = ad_feature_data[ad_feature_data.ad_id.isin(['63133'])]
+
+    #     return
 
     def process(self):
         a = self.raw_folder
@@ -185,12 +220,11 @@ class taobaoclick_small(Dataset):
         
         # Rough process the taobaoclick.csv
         if not check_exists(self.rough_process_folder):
-            self.rought_process()
+            self.rough_process()
+            self.rank_rough_data_by_user_(data_point_count=100000)
 
-        user_profile_data = self.select_user_id()
-        ad_feature_data = self.select_ad_id()
-        raw_sample_data = self.select_raw_sample(user_profile_data, ad_feature_data)
-
+        # self.ceshi()
+       
         train_set, test_set = self.make_implicit_data(user_profile_data, ad_feature_data, raw_sample_data)
         save(train_set, os.path.join(self.processed_folder, 'implicit', 'train.pt'), mode='pickle')
         save(test_set, os.path.join(self.processed_folder, 'implicit', 'test.pt'), mode='pickle')
@@ -199,7 +233,7 @@ class taobaoclick_small(Dataset):
         save(item_attr, os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         return
 
-    def rought_process(self):
+    def rough_process(self):
         picked_user_id = self.rough_process_user_profile()
         self.rough_process_raw_sample(picked_user_id)
         self.rough_process_ad_feature()
@@ -341,6 +375,15 @@ class taobaoclick_small(Dataset):
 
         return
 
+    def rank_rough_data_by_user_(self, data_point_count):
+        user_profile_data = self.select_user_id()
+        ad_feature_data = self.select_ad_id()
+        raw_sample_data = self.select_raw_sample(user_profile_data, ad_feature_data)
+
+
+
+
+
     def download(self):
         makedir_exist_ok(self.raw_folder)
         for (url, md5) in self.file:
@@ -387,15 +430,22 @@ class taobaoclick_small(Dataset):
         # item = np.array([item_id_map[i] for i in item_id], dtype=np.int64)[item_inv].reshape(item.shape)
 
         # sort the raw_sample_data by clk value
-        raw_sample_data = raw_sample_data.sort_values('clk', axis=0)
-        # if user made judgement on a ad many times, we take the last one
-        # This will cover the situation the user clicks the ad since the raw_sample_data is sorted
-        raw_sample_data = raw_sample_data[not raw_sample_data.duplicated('ad_id', keep='last')]
-
-        user = user_profile_data['user_id'].to_numpy()        
+        user = raw_sample_data['user_id'].to_numpy()        
         item = raw_sample_data['ad_id'].to_numpy()
         rating = raw_sample_data['clk'].to_numpy().astype(np.int64)
 
+        a1,b1,c1 = len(user), len(item), len(rating)
+
+        raw_sample_data = raw_sample_data.sort_values('clk', axis=0)
+        # if user made judgement on a ad many times, we take the last one
+        # This will cover the situation the user clicks the ad since the raw_sample_data is sorted
+        raw_sample_data = raw_sample_data.drop_duplicates(['user_id', 'ad_id'], keep='last')
+
+        user = raw_sample_data['user_id'].to_numpy()        
+        item = raw_sample_data['ad_id'].to_numpy()
+        rating = raw_sample_data['clk'].to_numpy().astype(np.int64)
+
+        a,b,c = len(user), len(item), len(rating)
         user_id, user_inv = np.unique(user, return_inverse=True)
         item_id, item_inv = np.unique(item, return_inverse=True)
         M, N = len(user_id), len(item_id)

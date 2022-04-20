@@ -74,8 +74,9 @@ def runExperiment():
         model.to('cpu')
         batch_size = {'test': 1}
         data_loader = make_data_loader({'test': SplitDataset(dataset['test'], data_split['test'][0])}, batch_size)['test']
-        calculate_parameter_size(train_logger, data_loader, model, active_node_count)
-
+        compress_parameter_ratio_per_epoch = calculate_parameter_size(train_logger, data_loader, model, active_node_count)
+        result['compress_parameter_ratio_per_epoch'] = compress_parameter_ratio_per_epoch
+        
     print('ggg')
     if cfg['fine_tune'] == True:
         print('ggg1')

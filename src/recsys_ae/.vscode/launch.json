@@ -13,26 +13,6 @@
             "program": "${workspaceFolder}/train_recsys_joint.py",
             "console": "integratedTerminal",
             "args": [
-                // "python",
-                // "train_recsys_joint.py",
-                "--control_name",
-                "ML100K_user_explicit_ae_0_random-2_constant-0.1_constant_1",
-                "--num_workers",
-                "0",
-                "--init_seed",
-                "0",
-                "--num_experiments",
-                "1",
-                "--log_interval",
-                "0.25",
-                "--device",
-                "cpu",
-                "--world_size",
-                "1",
-                "--resume_mode",
-                "0",
-                "--verbose",
-                "False",
             ]
         }
     ]

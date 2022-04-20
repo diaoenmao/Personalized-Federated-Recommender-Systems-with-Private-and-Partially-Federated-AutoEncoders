@@ -1,7 +1,7 @@
 ---
 # control
 control:
-  data_name: ML100K
+  data_name: ML20M
   data_mode: user
   target_mode: explicit
   model_name: ae

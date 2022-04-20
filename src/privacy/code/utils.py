@@ -190,7 +190,10 @@ def process_control():
 
     cfg['data_name'] = cfg['control']['data_name']
     cfg['data_mode'] = cfg['control']['data_mode']
-    cfg['target_mode'] = cfg['control']['target_mode']
+    if cfg['control']['target_mode'] == 'ex':
+        cfg['target_mode'] = 'explicit'
+    elif cfg['control']['target_mode'] == 'im':
+        cfg['target_mode'] = 'implicit'
     cfg['train_mode'] = cfg['control']['train_mode']
     if cfg['control']['federated_mode'] == 'de':
         cfg['federated_mode'] = 'decoder'
@@ -237,17 +240,17 @@ def process_control():
                     'ML1M': 500, 
                     'ML10M': 5000, 
                     'ML20M': 5000, 
-                    'taobaoclick_small': 100,
-                    'taobaoclick_medium': 500,
-                    'taobaoclick_large': 5000},
+                    'taobaoclicksmall': 100,
+                    'taobaoclickmedium': 500,
+                    'taobaoclicklarge': 5000},
                 'item': {
                     'ML100K': 100, 
                     'ML1M': 500, 
                     'ML10M': 1000, 
                     'ML20M': 1000, 
-                    'taobaoclick_small': 100,
-                    'taobaoclick_medium': 500,
-                    'taobaoclick_large': 5000}}
+                    'taobaoclicksmall': 100,
+                    'taobaoclickmedium': 500,
+                    'taobaoclicklarge': 5000}}
 
     # add parameter to model
     # Example: cfg['model_name']: ae         
@@ -268,18 +271,18 @@ def process_control():
                             'ML1M': 10, 
                             'ML10M': 10, 
                             'ML20M': 10, 
-                            'taobaoclick_small': 10,
-                            'taobaoclick_medium': 10,
-                            'taobaoclick_large': 10,},
+                            'taobaoclicksmall': 10,
+                            'taobaoclickmedium': 10,
+                            'taobaoclicklarge': 10,},
                         'item': {
                             'ML100K': 5, 
                             'ML1M': 10, 
                             'ML10M': 10, 
                             'ML20M': 10, 
                             'NFP': 10, 
-                            'taobaoclick_small': 10,
-                            'taobaoclick_medium': 10,
-                            'taobaoclick_large': 10}}
+                            'taobaoclicksmall': 10,
+                            'taobaoclickmedium': 10,
+                            'taobaoclicklarge': 10}}
             cfg[model_name]['fraction'] = 0.1
             cfg[model_name]['local_epoch'] = local_epoch
             cfg[model_name]['optimizer_name'] = 'SGD'

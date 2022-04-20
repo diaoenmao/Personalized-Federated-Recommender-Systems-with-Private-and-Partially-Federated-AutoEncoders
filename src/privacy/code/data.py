@@ -145,27 +145,27 @@ def fetch_dataset(data_name, model_name=None, verbose=True):
     
     root = os.path.join('data', '{}'.format(data_name))
     # root = './data/{}'.format(data_name)
-    if data_name in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'taobaoclick_small', 'taobaoclick_medium', 'taobaoclick_large']:
-        if data_name in ['taobaoclick_small', 'taobaoclick_medium', 'taobaoclick_large']:
+    if data_name in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'taobaoclicksmall', 'taobaoclickmedium', 'taobaoclicklarge']:
+        if data_name in ['taobaoclicksmall', 'taobaoclickmedium', 'taobaoclicklarge']:
             root = os.path.join('data', 'taobaoclick')
         # initialize the corresponding class of data_name in datasets / movielens.py
         # put the corresponding class instance in dataset['train']
         # put the corresponding class instance in dataset['test']
-        # if data_name == 'taobaoclick_small':
+        # if data_name == 'taobaoclicksmall':
         #     dataset['train'] = eval(
         #         'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
         #         'target_mode=cfg["target_mode"])'.format(data_name))
         #     dataset['test'] = eval(
         #         'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
         #         'target_mode=cfg["target_mode"], )'.format(data_name))
-        # elif data_name == 'taobaoclick_medium':
+        # elif data_name == 'taobaoclickmedium':
         #     dataset['train'] = eval(
         #         'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
         #         'target_mode=cfg["target_mode"])'.format(data_name))
         #     dataset['test'] = eval(
         #         'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
         #         'target_mode=cfg["target_mode"])'.format(data_name))
-        # elif data_name == 'taobaoclick_large':
+        # elif data_name == 'taobaoclicklarge':
         #     dataset['train'] = eval(
         #         'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
         #         'target_mode=cfg["target_mode"])'.format(data_name))

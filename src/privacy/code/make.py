@@ -35,10 +35,40 @@ log_interval: 0.25
 num_gpus: 12
 round: 1
 experiment_step: 1
-file: train_后面的，例如privacy_joint
+file: train_后面的, 例如privacy_joint
 data: ML100K_ML1M_ML10M_ML20M
 
-python make.py --run train --num_gpus 12 --round 1 --world_size 1 --num_experiments 4 --experiment_step 1 --init_seed 0 --resume_mode 0 --log_interval 0.25 --file privacy_joint --data ML100K_ML1M_ML10M_ML20M
+python make.py --run train --num_gpus 4 --round 1 --world_size 1 --num_experiments 1 --experiment_step 1 --init_seed 0 --resume_mode 0 --log_interval 0.25 --file privacy_joint --data ML100K_ML1M_ML10M_ML20M
+
+control:
+  data_name: ML100K (Name of the dataset)
+  data_mode: user (user or item)
+  target_mode: ex (explicit(ex) or implicit(im))
+  train_mode: fedavg (joint, fedsgd, fedavg)
+  federated_mode: de (all or decoder(de))
+  model_name: ae 
+  info: 1 (1: use user attribute, 0: not use user attribute)
+  data_split_mode: 'iid' (iid or non-iid)
+  update_best_model: 'g' (global(g) or local(l))
+  num_nodes: 100 (1, 100, 300, max)
+  compress_transmission: 1 (1: compress, 0: not compress)
+  experiment_size: 'l' (l(l): transfer parameters to cpu)
+  
+# experiment
+fine_tune: 0
+fine_tune_lr: 0.1
+fine_tune_batch_size: 5
+fine_tune_epoch: 5
+fix_layers: last
+fine_tune_scheduler: CosineAnnealingLR
+num_workers: 0
+init_seed: 0
+num_experiments: 1
+log_interval: 0.25
+device: cuda
+resume_mode: 0
+verbose: False
+
 '''
 
 def main():
@@ -67,81 +97,81 @@ def main():
         controls = []
         script_name = [['{}_privacy_joint.py'.format(run)]]
         if 'ML100K' in data:
-            control_name = [[['ML100K'], ['user'], ['explicit', 'implicit'], ['joint'], ['None'], ['ae'],
-                             ['0'], ['iid'], ['1'], ['0'], ['large']]]
+            control_name = [[['ML100K'], ['user'], ['ex', 'im'], ['joint'], ['NA'], ['ae'],
+                             ['0'], ['iid'], ['NA'], ['1'], ['0'], ['l']]]
             ml100k_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             control_name)
             controls.extend(ml100k_controls)
         if 'ML1M' in data:
-            control_name = [[['ML1M'], ['user'], ['explicit', 'implicit'], ['joint'], ['None'], ['ae'],
-                             ['0'], ['iid'], ['1'], ['0'], ['large']]]
+            control_name = [[['ML1M'], ['user'], ['ex', 'im'], ['joint'], ['None'], ['ae'],
+                             ['0'], ['iid'], ['1'], ['0'], ['l']]]
             ml1m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                           control_name)
             controls.extend(ml1m_controls)
         if 'ML10M' in data:
-            control_name = [[['ML10M'], ['user'], ['explicit', 'implicit'], ['joint'], ['None'], ['ae'],
-                             ['0'], ['iid'], ['1'], ['0'], ['large']]]
+            control_name = [[['ML10M'], ['user'], ['ex', 'im'], ['joint'], ['None'], ['ae'],
+                             ['0'], ['iid'], ['1'], ['0'], ['l']]]
             ml10m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                            control_name)
             controls.extend(ml10m_controls)
         if 'ML20M' in data:
-            control_name = [[['ML20M'], ['user'], ['explicit', 'implicit'], ['joint'], ['None'], ['ae'],
-                             ['0'], ['iid'], ['1'], ['0'], ['large']]]
+            control_name = [[['ML20M'], ['user'], ['ex', 'im'], ['joint'], ['None'], ['ae'],
+                             ['0'], ['iid'], ['1'], ['0'], ['l']]]
             ml20m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                            control_name)
             controls.extend(ml20m_controls)
 
-    elif file == 'privacy_fedsgd':
-        controls = []
-        script_name = [['{}_privacy_fedsgd.py'.format(run)]]
-        if 'ML100K' in data:
-            control_name = [[['ML100K'], ['user'], ['explicit', 'implicit'], ['fedsgd'], ['None'], ['ae'],
-                             ['0'], ['iid'], ['1'], ['0'], ['large']]]
-            ml100k_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
-                                            control_name)
-            controls.extend(ml100k_controls)
-        if 'ML1M' in data:
-            control_name = [[['ML1M'], ['user'], ['explicit', 'implicit'], ['fedsgd'], ['None'], ['ae'],
-                             ['0'], ['iid'], ['1'], ['0'], ['large']]]
-            ml1m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
-                                          control_name)
-            controls.extend(ml1m_controls)
-        if 'ML10M' in data:
-            control_name = [[['ML10M'], ['user'], ['explicit', 'implicit'], ['fedsgd'], ['None'], ['ae'],
-                             ['0'], ['iid'], ['1'], ['0'], ['large']]]
-            ml10m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
-                                           control_name)
-            controls.extend(ml10m_controls)
-        if 'ML20M' in data:
-            control_name = [[['ML20M'], ['user'], ['explicit', 'implicit'], ['fedsgd'], ['None'], ['ae'],
-                             ['0'], ['iid'], ['1'], ['0'], ['large']]]
-            ml20m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
-                                           control_name)
-            controls.extend(ml20m_controls)
+    # elif file == 'privacy_fedsgd':
+    #     controls = []
+    #     script_name = [['{}_privacy_fedsgd.py'.format(run)]]
+    #     if 'ML100K' in data:
+    #         control_name = [[['ML100K'], ['user'], ['ex', 'im'], ['fedsgd'], ['None'], ['ae'],
+    #                          ['0'], ['iid'], ['1'], ['0'], ['l']]]
+    #         ml100k_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
+    #                                         control_name)
+    #         controls.extend(ml100k_controls)
+    #     if 'ML1M' in data:
+    #         control_name = [[['ML1M'], ['user'], ['ex', 'im'], ['fedsgd'], ['None'], ['ae'],
+    #                          ['0'], ['iid'], ['1'], ['0'], ['l']]]
+    #         ml1m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
+    #                                       control_name)
+    #         controls.extend(ml1m_controls)
+    #     if 'ML10M' in data:
+    #         control_name = [[['ML10M'], ['user'], ['ex', 'im'], ['fedsgd'], ['None'], ['ae'],
+    #                          ['0'], ['iid'], ['1'], ['0'], ['l']]]
+    #         ml10m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
+    #                                        control_name)
+    #         controls.extend(ml10m_controls)
+    #     if 'ML20M' in data:
+    #         control_name = [[['ML20M'], ['user'], ['ex', 'im'], ['fedsgd'], ['None'], ['ae'],
+    #                          ['0'], ['iid'], ['1'], ['0'], ['l']]]
+    #         ml20m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
+    #                                        control_name)
+    #         controls.extend(ml20m_controls)
     elif file == 'privacy_federated_all':
         controls = []
         script_name = [['{}_privacy_federated_all.py'.format(run)]]
         if 'ML100K' in data:
-            control_name = [[['ML100K'], ['user'], ['explicit', 'implicit'], ['fedavg'], ['all'], ['ae'],
-                             ['0'], ['iid'], ['100'], ['0'], ['large']]]
+            control_name = [[['ML100K'], ['user'], ['ex', 'im'], ['fedavg'], ['all'], ['ae'],
+                             ['0'], ['iid'], ['g'], ['100', 'max'], ['0'], ['l']]]
             ml100k_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             control_name)
             controls.extend(ml100k_controls)
         if 'ML1M' in data:
-            control_name = [[['ML1M'], ['user'], ['explicit', 'implicit'], ['fedavg'], ['all'], ['ae'],
-                             ['0'], ['iid'], ['100'], ['0'], ['large']]]
+            control_name = [[['ML1M'], ['user'], ['ex', 'im'], ['fedavg'], ['all'], ['ae'],
+                             ['0'], ['iid'], ['g'], ['100', 'max'], ['0'], ['l']]]
             ml1m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                           control_name)
             controls.extend(ml1m_controls)
         if 'ML10M' in data:
-            control_name = [[['ML10M'], ['user'], ['explicit', 'implicit'], ['fedavg'], ['all'], ['ae'],
-                             ['0'], ['iid'], ['100'], ['0'], ['large']]]
+            control_name = [[['ML10M'], ['user'], ['ex', 'im'], ['fedavg'], ['all'], ['ae'],
+                             ['0'], ['iid'], ['g'], ['100', '300'], ['0'], ['l']]]
             ml10m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                            control_name)
             controls.extend(ml10m_controls)
         if 'ML20M' in data:
-            control_name = [[['ML20M'], ['user'], ['explicit', 'implicit'], ['fedavg'], ['all'], ['ae'],
-                             ['0'], ['iid'], ['100'], ['0'], ['large']]]
+            control_name = [[['ML20M'], ['user'], ['ex', 'im'], ['fedavg'], ['all'], ['ae'],
+                             ['0'], ['iid'], ['g'], ['100', '300'], ['0'], ['l']]]
             ml20m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                            control_name)
             controls.extend(ml20m_controls)
@@ -149,26 +179,26 @@ def main():
         controls = []
         script_name = [['{}_privacy_federated_decoder.py'.format(run)]]
         if 'ML100K' in data:
-            control_name = [[['ML100K'], ['user'], ['explicit', 'implicit'], ['fedavg'], ['decoder'], ['ae'],
-                             ['0'], ['iid'], ['100', 'max'], ['0'], ['large']]]
+            control_name = [[['ML100K'], ['user'], ['ex', 'im'], ['fedavg'], ['de'], ['ae'],
+                             ['0'], ['iid'], ['g'], ['100', 'max'], ['0', '1'], ['l']]]
             ml100k_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             control_name)
             controls.extend(ml100k_controls)
         if 'ML1M' in data:
-            control_name = [[['ML1M'], ['user'], ['explicit', 'implicit'], ['fedavg'], ['all'], ['ae'],
-                             ['0'], ['iid'], ['100', 'max'], ['0'], ['large']]]
+            control_name = [[['ML1M'], ['user'], ['ex', 'im'], ['fedavg'], ['de'], ['ae'],
+                             ['0'], ['iid'], ['g'], ['100', 'max'], ['0', '1'], ['l']]]
             ml1m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                           control_name)
             controls.extend(ml1m_controls)
         if 'ML10M' in data:
-            control_name = [[['ML10M'], ['user'], ['explicit', 'implicit'], ['fedavg'], ['all'], ['ae'],
-                             ['0'], ['iid'], ['100'], ['0'], ['large']]]
+            control_name = [[['ML10M'], ['user'], ['ex', 'im'], ['fedavg'], ['de'], ['ae'],
+                             ['0'], ['iid'], ['g'], ['100', '300'], ['0', '1'], ['l']]]
             ml10m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                            control_name)
             controls.extend(ml10m_controls)
         if 'ML20M' in data:
-            control_name = [[['ML20M'], ['user'], ['explicit', 'implicit'], ['fedavg'], ['all'], ['ae'],
-                             ['0'], ['iid'], ['100'], ['0'], ['large']]]
+            control_name = [[['ML20M'], ['user'], ['ex', 'im'], ['fedavg'], ['de'], ['ae'],
+                             ['0'], ['iid'], ['g'], ['100', '300'], ['0', '1'], ['l']]]
             ml20m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                            control_name)
             controls.extend(ml20m_controls)

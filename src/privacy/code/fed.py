@@ -129,14 +129,13 @@ class Federation:
         return
 
     def update_client_parameters_with_global_parameters(self, cur_model):
-        
+        # print(f"update_client_parameters_with_global_parameters:{cfg['federated_mode']}")
         if cfg['federated_mode'] == 'decoder':       
+
             net_model_dict = {}
             # for key in self.global_model.state_dict():
             for key,value in self.global_model.named_parameters():
-                if cfg['federated_mode'] == 'encoder' and 'decoder' in key:
-                    net_model_dict[key] = copy.deepcopy(cur_model.state_dict()[key]) 
-                elif cfg['federated_mode'] == 'decoder' and 'encoder' in key:
+                if cfg['federated_mode'] == 'decoder' and 'encoder' in key:
                     net_model_dict[key] = copy.deepcopy(cur_model.state_dict()[key])
                 else:   
                     net_model_dict[key] = copy.deepcopy(self.global_model.state_dict()[key])
@@ -151,9 +150,7 @@ class Federation:
             if cfg['train_mode'] == 'fedavg':
                 if cfg['federated_mode'] == 'decoder':
                     for key, value in self.global_model.named_parameters():
-                        if cfg['federated_mode'] == 'encoder' and 'decoder' in key:
-                            pass
-                        elif cfg['federated_mode'] == 'decoder' and 'encoder' in key:
+                        if cfg['federated_mode'] == 'decoder' and 'encoder' in key:
                             pass
                         elif (key == 'decoder.blocks.3.weight' or key == 'decoder.blocks.3.bias') and item_union_set:
                             cur_ratio = 1 / total_client

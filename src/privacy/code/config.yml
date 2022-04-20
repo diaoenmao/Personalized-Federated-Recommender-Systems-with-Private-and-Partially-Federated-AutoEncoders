@@ -1,7 +1,7 @@
 ---
 # control
 control:
-  data_name: taobaoclick_small
+  data_name: taobaoclicksmall
   data_mode: user
   target_mode: explicit
   train_mode: fedavg
@@ -25,6 +25,7 @@ num_workers: 0
 init_seed: 0
 num_experiments: 1
 log_interval: 0.25
-device: cpu
+device: cuda
 resume_mode: 0
+world_size: 1
 verbose: False
