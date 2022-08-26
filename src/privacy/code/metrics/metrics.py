@@ -128,6 +128,8 @@ class Metric(object):
         for metric_name in metric_names:
             evaluation[metric_name] = self.metric[metric_name](input, output)
         if node_idx:
+            # if update_best_model == 'local',
+            # add 'node_idx': node_idx to locate local model
             evaluation['node_idx'] = node_idx
         return evaluation
 
@@ -141,6 +143,9 @@ class Metric(object):
                 raise ValueError('Not valid pivot direction')
             return compared
         elif cfg['update_best_model'] == 'local':
+            '''
+            compare and label the compare result of each node
+            '''
             update_index_list = [False for _ in range(len(self.pivot))]
             for node_idx in val:
                 compared = False
@@ -161,6 +166,9 @@ class Metric(object):
             self.pivot = val
             return
         elif cfg['update_best_model'] == 'local':
+            '''
+            update the best result of each node
+            '''
             for node_idx in range(len(update_index_list)):
                 if update_index_list[node_idx] == True:
                     self.pivot[node_idx] = val[node_idx]

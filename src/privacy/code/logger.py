@@ -20,7 +20,7 @@ class Logger:
         self.history = defaultdict(list)
         self.iterator = defaultdict(int)
         self.mean_for_each_node = defaultdict(int)
-        self.compress_item_union_history = defaultdict(int)
+        self.compress_activated_item_union_num_history = defaultdict(int)
 
     def reset(self):
         self.tracker = defaultdict(int)
@@ -42,8 +42,8 @@ class Logger:
                 self.history[name].append(self.mean[name])
         return
 
-    def append_compress_item_union(self, total_item_union, epoch):
-        self.compress_item_union_history[epoch] += total_item_union
+    def append_compress_activated_item_union_num(self, total_activated_item_union_num, epoch):
+        self.compress_activated_item_union_num_history[epoch] += total_activated_item_union_num
         return
 
 
@@ -95,8 +95,7 @@ class Logger:
                         if isinstance(result[k], Number):
                             self.mean_for_each_node[name][node_idx] = result[k]
                             # self.counter[name] += n
-                            # self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]
-                        
+                            # self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]    
                     else:
                         raise ValueError('Not valid update_best_model way')
         return

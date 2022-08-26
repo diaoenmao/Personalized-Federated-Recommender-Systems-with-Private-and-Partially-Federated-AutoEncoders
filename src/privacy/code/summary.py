@@ -58,12 +58,14 @@ def calculate_parameter_size(logger, data_loader, model, active_node_count):
     decoder_total_parameters = decoder_size * active_node_count
     decoder_total_rest_layer_size = (decoder_size - last_layer_size) * active_node_count
     total_last_layer_parameter = last_layer_size * active_node_count
-    a = logger.compress_item_union_history
-    for epoch, total_item_union in logger.compress_item_union_history.items():
-        compress_ratio = total_item_union / (cfg['num_items']['data'] * active_node_count)
+    a = logger.compress_activated_item_union_num_history
+    print('hhhh', a)
+    for epoch, total_activated_item_union_num in logger.compress_activated_item_union_num_history.items():
+        compress_ratio = total_activated_item_union_num / (cfg['num_items']['data'] * active_node_count)
         compress_decoder_total_parameters = decoder_total_rest_layer_size + compress_ratio * total_last_layer_parameter
         compress_decoder_ratio = compress_decoder_total_parameters / decoder_total_parameters
         compress_parameter_ratio_per_epoch[epoch] = compress_decoder_ratio
+    print('fdsfad', compress_parameter_ratio_per_epoch)
     return compress_parameter_ratio_per_epoch
 
 def make_size(input, output):

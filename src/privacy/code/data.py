@@ -43,8 +43,6 @@ def iid(dataset, num_nodes):
         data_split_info[i]['num_users'] = user_per_node_i
         data_split_info[i]['num_items'] = cfg['num_items']['data']
         idx = list(set(idx) - set(data_split[i]))
-    
-    
     # for i in range(len(idx)): 
     #     data_split[i].append(idx[i])
     #     data_split_info[i]['num_users'] += 1
@@ -173,6 +171,8 @@ def fetch_dataset(data_name, model_name=None, verbose=True):
         #         'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
         #         'target_mode=cfg["target_mode"])'.format(data_name))
         # else:
+        # print('%%%%%%%%%%', cfg, data_name)
+        # print(cfg['target_mode'])
         dataset['train'] = eval(
             'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
             'target_mode=cfg["target_mode"])'.format(data_name))

@@ -1,7 +1,7 @@
 # from .movielens import ML100K, ML1M, ML10M, ML20M
-from .movielens import ML100K, ML1M
+from .movielens import ML100K, ML1M, ML10M, ML20M
 from .taobaoclick import taobaoclicksmall
 from .nfp import NFP
 from .datasets_utils import *
 
-__all__ = ('ML100K')
+__all__ = ('ML100K', 'ML1M', 'ML10M', 'ML20M')

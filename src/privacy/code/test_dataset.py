@@ -94,7 +94,7 @@ def runExperiment():
     # federation = Federation(data_split_info)
     # federation.create_local_model_and_local_optimizer()
     # if cfg['compress_transmission'] == True:
-    #     federation.record_global_grade_item_for_user(dataset['train'])
+    #     federation.record_items_for_each_user(dataset['train'])
 
     # if cfg['target_mode'] == 'explicit':
     #     # metric / class Metric

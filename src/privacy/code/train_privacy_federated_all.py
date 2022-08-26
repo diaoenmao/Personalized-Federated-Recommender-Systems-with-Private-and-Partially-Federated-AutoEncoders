@@ -2,7 +2,6 @@ import argparse
 import copy
 import datetime
 from platform import node
-from numpy import mod
 
 from torch.optim import optimizer
 import models
@@ -80,7 +79,9 @@ def runExperiment():
 
     # if data_split is None:
     data_split, data_split_info = split_dataset(dataset, cfg['num_nodes'], cfg['data_split_mode'])
-    print('train_data_split', data_split)
+    data_split['test'] = copy.deepcopy(data_split['train'])
+
+    print('train_data_split', data_split, len(data_split['train'][0]))
     # data.py / make_data_loader(dataset)
     # data_loader is a dict, has 2 keys - 'train', 'test'
     # data_loader['train'] is the instance of DataLoader (class in PyTorch), which is iterable (可迭代对象)
@@ -93,8 +94,6 @@ def runExperiment():
     #   Encoder and Decoder.
     federation = Federation(data_split_info)
     federation.create_local_model_and_local_optimizer()
-    if cfg['compress_transmission'] == True:
-        federation.record_global_grade_item_for_user(dataset['train'])
 
     if cfg['target_mode'] == 'explicit':
         # metric / class Metric
@@ -135,15 +134,40 @@ def runExperiment():
         logger.safe(True)
         
         global_optimizer_lr = global_optimizer.state_dict()['param_groups'][0]['lr']
-        node_idx, local_parameters = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch, global_optimizer_lr)
+        node_idx = train(
+            dataset['train'], 
+            data_split['train'], 
+            data_split_info, 
+            federation, 
+            metric, 
+            logger, 
+            epoch, 
+            global_optimizer_lr
+        )
         federation.update_global_model_momentum()
         model_state_dict = federation.global_model.state_dict()
-        info = test(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
+        info = test(
+            dataset['test'], 
+            data_split['test'], 
+            data_split_info, 
+            federation, 
+            metric, 
+            logger, 
+            epoch
+        )
     
         global_scheduler.step()
         logger.safe(False)
 
-        result = {'cfg': cfg, 'epoch': epoch + 1, 'info': info, 'logger': logger, 'model_state_dict': model_state_dict, 'data_split': data_split, 'data_split_info': data_split_info}
+        result = {
+            'cfg': cfg, 
+            'epoch': epoch + 1, 
+            'info': info, 
+            'logger': logger, 
+            'model_state_dict': model_state_dict, 
+            'data_split': data_split, 
+            'data_split_info': data_split_info
+        }
 
         checkpoint_path = '../output/model/{}_checkpoint.pt'.format(cfg['model_tag'])
         best_path = '../output/model/{}_best.pt'.format(cfg['model_tag'])
@@ -157,7 +181,16 @@ def runExperiment():
     return
 
 
-def train(dataset, data_split, data_split_info, federation, metric, logger, epoch, global_optimizer_lr):
+def train(
+    dataset, 
+    data_split, 
+    data_split_info, 
+    federation, 
+    metric, 
+    logger, 
+    epoch, 
+    global_optimizer_lr
+):
 
     """
     train the model
@@ -182,17 +215,23 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
         None
     """
 
-    local, node_idx = make_local(dataset, data_split, data_split_info, federation, metric)
+    local, node_idx = make_local(
+        dataset, 
+        data_split, 
+        data_split_info, 
+        federation, 
+        metric
+    )
    
     num_active_nodes = len(node_idx)
     print('num_active_nodes', num_active_nodes)
 
     start_time = time.time()
-    for m in range(num_active_nodes):
-        item_union_set = None
-        if cfg['compress_transmission'] == True:
-            item_union_set = federation.calculate_item_union_set(data_split[node_idx[m]])
-        federation.generate_new_global_model_parameter_dict(local[m].train(logger, federation, node_idx[m], global_optimizer_lr), num_active_nodes, item_union_set)
+    for m in range(num_active_nodes):    
+        federation.generate_new_global_model_parameter_dict(
+            local[m].train(logger, federation, node_idx[m], global_optimizer_lr), 
+            num_active_nodes
+        )
        
         if m % int((num_active_nodes * cfg['log_interval']) + 1) == 0:
             local_time = (time.time() - start_time) / (m + 1)
@@ -210,7 +249,15 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
             
     return node_idx
 
-def test(dataset, data_split, data_split_info, federation, metric, logger, epoch):
+def test(
+    dataset, 
+    data_split, 
+    data_split_info, 
+    federation, 
+    metric, 
+    logger, 
+    epoch
+):
 
     with torch.no_grad():
         cur_num_users = data_split_info[0]['num_users']
@@ -224,9 +271,14 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
         for m in range(len(data_split)):
 
             cur_num_users = data_split_info[m]['num_users']
-            batch_size = {'test': min(cur_num_users, cfg[cfg['model_name']]['batch_size']['test'])}
+            batch_size = {
+                'test': min(cur_num_users, cfg[cfg['model_name']]['batch_size']['test'])
+            }
             # print('batch_size', batch_size)
-            data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
+            data_loader = make_data_loader(
+                {'test': SplitDataset(dataset, data_split[m])}, 
+                batch_size
+            )['test']
           
             for i, original_input in enumerate(data_loader):
                 input = copy.deepcopy(original_input)
@@ -266,9 +318,13 @@ def make_local(dataset, data_split, data_split_info, federation, metric):
         cur_node_index = node_idx[m]
         user_per_node_i = data_split_info[cur_node_index]['num_users']
 
-        batch_size = {'train': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['train'])}
-        data_loader_m = make_data_loader({'train': SplitDataset(dataset, 
-            data_split[cur_node_index])}, batch_size)['train']
+        batch_size = {
+            'train': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['train'])
+        }
+        data_loader_m = make_data_loader(
+            {'train': SplitDataset(dataset, data_split[cur_node_index])}, 
+            batch_size
+        )['train']
 
         cur_num_users = data_split_info[cur_node_index]['num_users']
         cur_num_items = data_split_info[cur_node_index]['num_items']
@@ -304,7 +360,6 @@ class Local:
         for local_epoch in range(1, cfg[cfg['model_name']]['local_epoch'] + 1):
             for i, original_input in enumerate(self.data_loader):
                 input = copy.deepcopy(original_input)
-
                 input = collate(input)
                 input_size = len(input['target_{}'.format(cfg['data_mode'])])
                 if input_size == 0:

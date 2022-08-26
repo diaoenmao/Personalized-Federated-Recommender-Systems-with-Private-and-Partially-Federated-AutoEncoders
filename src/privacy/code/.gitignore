@@ -128,3 +128,5 @@ res/
 federated_decoder/
 federated_privacy/*
 federated_privacy
+
+data/

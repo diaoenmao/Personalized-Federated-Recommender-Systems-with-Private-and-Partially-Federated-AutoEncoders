@@ -2,9 +2,7 @@ import argparse
 import copy
 import datetime
 from platform import node
-from numpy import mod
 
-from torch.optim import optimizer
 import models
 import os
 import shutil
@@ -94,7 +92,7 @@ def runExperiment():
     federation = Federation(data_split_info)
     federation.create_local_model_and_local_optimizer()
     if cfg['compress_transmission'] == True:
-        federation.record_global_grade_item_for_user(dataset['train'])
+        federation.record_items_for_each_user(dataset['train'])
 
     if cfg['target_mode'] == 'explicit':
         # metric / class Metric
@@ -115,7 +113,6 @@ def runExperiment():
     global_scheduler = make_scheduler(global_optimizer, cfg['model_name'])
 
     # Handle resuming the training situation
-    cur_file_path = os.path.abspath(__file__)
     if cfg['resume_mode'] == 1:
         result = resume(cfg['model_tag'])
         last_epoch = result['epoch']
@@ -142,18 +139,44 @@ def runExperiment():
         logger.safe(True)
         
         global_optimizer_lr = global_optimizer.state_dict()['param_groups'][0]['lr']
-        node_idx, total_item_union = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch, global_optimizer_lr)
+        node_idx, total_activated_item_union_num = train(
+            dataset['train'], 
+            data_split['train'], 
+            data_split_info, 
+            federation, 
+            metric, 
+            logger, 
+            epoch, 
+            global_optimizer_lr
+        )
         federation.update_global_model_momentum()
         model_state_dict = federation.global_model.state_dict()
-        info = test(dataset['test'], data_split['train'], data_split_info, federation, metric, logger, epoch)
+        info = test(
+            dataset['test'], 
+            data_split['test'], 
+            data_split_info, 
+            federation, 
+            metric, 
+            logger, 
+            epoch
+        )
 
         # info = test_batchnorm(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
         global_scheduler.step()
-        if cfg['experiment_size'] == 'large':
-            logger.append_compress_item_union(total_item_union, epoch)
+        if cfg['compress_transmission'] == True:
+            logger.append_compress_activated_item_union_num(total_activated_item_union_num, epoch)
         logger.safe(False)
 
-        result = {'cfg': cfg, 'epoch': epoch + 1, 'active_node_count': len(node_idx), 'info': info, 'logger': logger, 'model_state_dict': model_state_dict, 'data_split': data_split, 'data_split_info': data_split_info}
+        result = {
+            'cfg': cfg, 
+            'epoch': epoch + 1, 
+            'active_node_count': len(node_idx), 
+            'info': info, 
+            'logger': logger, 
+            'model_state_dict': model_state_dict, 
+            'data_split': data_split, 
+            'data_split_info': data_split_info
+        }
         # checkpoint_path = concatenate_path(['..', 'output', 'model', '{}_checkpoint.pt'.format(cfg['model_tag'])])
         # best_path = concatenate_path(['..', 'output', 'model', '{}_best.pt'.format(cfg['model_tag'])])
         if cfg['update_best_model'] == 'global':
@@ -179,12 +202,21 @@ def runExperiment():
             raise ValueError('Not valid update_best_model way')
 
         logger.reset()
-
+    logger.safe(False)
     return
 
 
 
-def train(dataset, data_split, data_split_info, federation, metric, logger, epoch, global_optimizer_lr):
+def train(
+    dataset, 
+    data_split, 
+    data_split_info, 
+    federation, 
+    metric, 
+    logger, 
+    epoch, 
+    global_optimizer_lr
+):
 
     """
     train the model
@@ -209,16 +241,29 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
         None
     """
 
-    local, node_idx = make_local(dataset, data_split, data_split_info, federation, metric)
+    local, node_idx = make_local(
+        dataset, 
+        data_split, 
+        data_split_info, 
+        federation, 
+        metric
+    )
     start_time = time.time()
 
-    total_item_union = 0
+    total_activated_item_union_num = 0
     for m in range(len(node_idx)):
         item_union_set = None
         if cfg['compress_transmission'] == True:
-            item_union_set = federation.calculate_item_union_set(node_idx[m], data_split[node_idx[m]])
-            total_item_union += len(item_union_set)
-        federation.generate_new_global_model_parameter_dict(local[m].train(logger, federation, node_idx[m], global_optimizer_lr), len(node_idx), item_union_set)
+            item_union_set = federation.calculate_item_union_set(
+                node_idx[m], 
+                data_split[node_idx[m]]
+            )
+            total_activated_item_union_num += len(item_union_set)
+        federation.generate_new_global_model_parameter_dict(
+            local[m].train(logger, federation, node_idx[m], global_optimizer_lr), 
+            len(node_idx), 
+            item_union_set
+        )
 
         
         if m % int((len(node_idx) * cfg['log_interval']) + 1) == 0:
@@ -235,22 +280,35 @@ def train(dataset, data_split, data_split_info, federation, metric, logger, epoc
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
 
-    return node_idx, total_item_union
+    return node_idx, total_activated_item_union_num
 
 
-def test(dataset, data_split, data_split_info, federation, metric, logger, epoch):
+def test(
+    dataset, 
+    data_split, 
+    data_split_info, 
+    federation, 
+    metric, 
+    logger, 
+    epoch
+):
 
     with torch.no_grad():
         for m in range(len(data_split)):
             user_per_node_i = data_split_info[m]['num_users']
-            batch_size = {'test': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['test'])}
-            data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
+            batch_size = {
+                'test': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['test'])
+            }
+            data_loader = make_data_loader(
+                {'test': SplitDataset(dataset, data_split[m])}, 
+                batch_size
+            )['test']
 
             model = federation.load_local_model(m)
             model.to(cfg['device'])
             model = federation.update_client_parameters_with_global_parameters(model)
-            
             model.train(False)
+            
             for i, original_input in enumerate(data_loader):
                 input = copy.deepcopy(original_input)
                 input = collate(input)
@@ -266,10 +324,15 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
 
                 if cfg['update_best_model'] == 'global':
                     evaluation = metric.evaluate(metric.metric_name['test'], input, output)
-                    logger.append(evaluation, 'test', input_size)
+
                 elif cfg['update_best_model'] == 'local':
                     evaluation = metric.evaluate(metric.metric_name['test'], input, output, m)
-                    logger.append(evaluation, 'test', input_size)
+
+                logger.append(
+                    result=evaluation, 
+                    tag='test', 
+                    n=input_size
+                )
 
             if cfg['experiment_size'] == 'large':
                 model.to('cpu')

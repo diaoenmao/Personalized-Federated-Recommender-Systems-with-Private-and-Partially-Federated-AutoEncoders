@@ -421,7 +421,7 @@ class Local:
         if cfg['store_local_optimizer'] == True:
             # optimizer = make_optimizer(model, cfg['model_name'])
             # scheduler = make_scheduler(optimizer, cfg['model_name'])
-            local_optimizer_state_dict = federation.get_local_optimizer(cur_node_index).state_dict()
+            local_optimizer_state_dict = federation.get_local_optimizer(cur_node_index, model).state_dict()
             # local_scheduler_state_dict = federation.get_local_scheduler(cur_node_index, model).state_dict()
             optimizer.load_state_dict(local_optimizer_state_dict)
             # scheduler.load_state_dict(local_scheduler_state_dict)

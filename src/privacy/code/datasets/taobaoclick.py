@@ -128,6 +128,7 @@ class taobaoclicksmall(Dataset):
 
     @property
     def raw_folder(self):
+        
         return os.path.join(self.root, 'raw')
 
     @property

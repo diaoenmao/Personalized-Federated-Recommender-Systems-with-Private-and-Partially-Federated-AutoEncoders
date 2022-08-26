@@ -28,11 +28,12 @@ class ML100K(Dataset):
             self.process()
         self.data, self.target = load(os.path.join(self.processed_folder, self.target_mode, '{}.pt'.format(self.split)),
                                       mode='pickle')
-        # user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
-        # self.user_profile = {'data': user_profile, 'target': user_profile}
+        print('%%%%%', self.data.shape, self.target.shape)
+        user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
+        self.user_profile = {'data': user_profile, 'target': user_profile}
         # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         # self.item_attr = {'data': item_attr, 'target': item_attr}
-        self.user_profile = {}
+        # self.user_profile = {}
         self.item_attr = {}
 
         # self.data = self.data[:100]
@@ -299,11 +300,11 @@ class ML1M(Dataset):
                                    shape=(self.target.shape[1], self.target.shape[0]))
         else:
             raise ValueError('Not valid data mode')
-        # user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
-        # self.user_profile = {'data': user_profile, 'target': user_profile}
+        user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
+        self.user_profile = {'data': user_profile, 'target': user_profile}
         # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         # self.item_attr = {'data': item_attr, 'target': item_attr}
-        self.user_profile = {}
+        # self.user_profile = {}
         self.item_attr = {}
 
     def __getitem__(self, index):
@@ -391,8 +392,8 @@ class ML1M(Dataset):
         train_set, test_set = self.make_implicit_data()
         save(train_set, os.path.join(self.processed_folder, 'implicit', 'train.pt'), mode='pickle')
         save(test_set, os.path.join(self.processed_folder, 'implicit', 'test.pt'), mode='pickle')
-        # user_profile, item_attr = self.make_info()
-        # save(user_profile, os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
+        user_profile, item_attr = self.make_info()
+        save(user_profile, os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
         # save(item_attr, os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         return
 
@@ -419,8 +420,10 @@ class ML1M(Dataset):
         item_id_map = {item_id[i]: i for i in range(len(item_id))}
         user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(user.shape)
         item = np.array([item_id_map[i] for i in item_id], dtype=np.int64)[item_inv].reshape(item.shape)
+
         idx = np.random.permutation(user.shape[0])
         num_train = int(user.shape[0] * 0.9)
+        
         train_idx, test_idx = idx[:num_train], idx[num_train:]
         train_user, train_item, train_rating = user[train_idx], item[train_idx], rating[train_idx]
         test_user, test_item, test_rating = user[test_idx], item[test_idx], rating[test_idx]
@@ -465,7 +468,7 @@ class ML1M(Dataset):
         item_id, item_inv = np.unique(item, return_inverse=True)
         item_id_map = {item_id[i]: i for i in range(len(item_id))}
         user_profile = pd.read_csv(os.path.join(self.raw_folder, 'ml-1m', 'users.dat'), delimiter='::',
-                                   names=['id', 'gender', 'age', 'occupation', 'zipcode'], engine='python')
+                                   names=['id', 'gender', 'age', 'occupation', 'zipcode'], encoding="latin", engine='python')
         age = le.fit_transform(user_profile['age'].to_numpy()).astype(np.int64)
         age = np.eye(len(le.classes_), dtype=np.float32)[age]
         gender = le.fit_transform(user_profile['gender'].to_numpy()).astype(np.int64)
@@ -474,7 +477,7 @@ class ML1M(Dataset):
         occupation = np.eye(len(le.classes_), dtype=np.float32)[occupation]
         user_profile = np.hstack([age, gender, occupation])
         item_attr = pd.read_csv(os.path.join(self.raw_folder, 'ml-1m', 'movies.dat'), delimiter='::',
-                                names=['id', 'name', 'genre'], engine='python')
+                                names=['id', 'name', 'genre'], encoding="latin", engine='python')
         item_attr = item_attr[item_attr['id'].isin(list(item_id_map.keys()))]
         genre_list = ['Action', 'Adventure', 'Animation', "Children's", 'Comedy', 'Crime', 'Documentary', 'Drama',
                       'Fantasy', 'Film-Noir', 'Horror', 'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War',

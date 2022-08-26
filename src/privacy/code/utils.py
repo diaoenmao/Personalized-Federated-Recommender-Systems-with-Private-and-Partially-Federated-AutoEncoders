@@ -138,11 +138,41 @@ def recur(fn, input, *args):
         raise ValueError('Not valid input type')
     return output
 
+def process_fine_tune():
+    cfg['fine_tune'] = False
+    if 'fine_tune' in cfg:
+        cfg['fine_tune'] = int(cfg['fine_tune']) == 1
+    if 'fine_tune_lr' in cfg:
+        cfg['fine_tune_lr'] = float(cfg['fine_tune_lr'])
+    if 'fine_tune_batch_size' in cfg:
+        cfg['fine_tune_batch_size'] = int(cfg['fine_tune_batch_size'])
+    if 'fine_tune_epoch' in cfg:
+        cfg['fine_tune_epoch'] = int(cfg['fine_tune_epoch'])
+    if 'fix_layers' in cfg:
+        cfg['fix_layers'] = cfg['fix_layers']
+    if 'fine_tune_scheduler' in cfg:
+        cfg['fine_tune_scheduler'] = cfg['fine_tune_scheduler']
+
+    model_name = cfg['model_name']
+    if cfg['fine_tune'] == True:
+        # cfg[model_name]['momentum'] = 0.9
+        # cfg[model_name]['nesterov'] = True
+        cfg[model_name]['optimizer_name'] = 'SGD'
+        cfg[model_name]['momentum'] = 0
+        cfg[model_name]['nesterov'] = False
+        cfg[model_name]['betas'] = (0.9, 0.999)
+        cfg[model_name]['weight_decay'] = 5e-4
+        cfg[model_name]['batch_size'] = {'test': cfg['fine_tune_batch_size']}
+        cfg[model_name]['lr'] = cfg['fine_tune_lr']
+        cfg[model_name]['num_epochs'] = cfg['fine_tune_epoch']
+        cfg[model_name]['scheduler_name'] = cfg['fine_tune_scheduler']
+        cfg[model_name]['milestones'] = [10, 20, 30]
+        cfg[model_name]['factor'] = 0.1
 
 def process_dataset(dataset):
     
     """
-    Add some key:value to cfg
+    Add some key:value about dataset(info about the number of datapoints) to cfg
 
     Parameters:
         dataset - Dict. dataset['train'] is the train dataset instance. dataset['test']
@@ -153,7 +183,6 @@ def process_dataset(dataset):
 
     Raises:
         None
-    
     """
     cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['test'])}
     cfg['num_users'], cfg['num_items'] = dataset['train'].num_users, dataset['train'].num_items
@@ -164,15 +193,14 @@ def process_dataset(dataset):
         # hasattr() determines if the object has corresponding attribute
         if hasattr(dataset['train'], 'user_profile'):
             cfg['info_size']['user_profile'] = dataset['train'].user_profile['data'].shape[1]
-        if hasattr(dataset['train'], 'item_attr'):
-            cfg['info_size']['item_attr'] = dataset['train'].item_attr['data'].shape[1]
+        # if hasattr(dataset['train'], 'item_attr'):
+            # cfg['info_size']['item_attr'] = dataset['train'].item_attr['data'].shape[1]
     else:
         cfg['info_size'] = None
     return
 
 
 def process_control():
-    
     """
     Since cfg is global variable, dont need to pass parameter
     1. Disassemble cfg['control']
@@ -187,21 +215,26 @@ def process_control():
     Raises:
         None
     """
-
     cfg['data_name'] = cfg['control']['data_name']
     cfg['data_mode'] = cfg['control']['data_mode']
+    # convert some abbreviations to full name
     if cfg['control']['target_mode'] == 'ex':
         cfg['target_mode'] = 'explicit'
     elif cfg['control']['target_mode'] == 'im':
         cfg['target_mode'] = 'implicit'
     cfg['train_mode'] = cfg['control']['train_mode']
+
     if cfg['control']['federated_mode'] == 'de':
         cfg['federated_mode'] = 'decoder'
     elif cfg['control']['federated_mode'] == 'all':
         cfg['federated_mode'] = 'all'
+    elif cfg['control']['federated_mode'] == 'NA':
+        cfg['federated_mode'] = 'NA'
+
     cfg['model_name'] = cfg['control']['model_name']
     cfg['info'] = float(cfg['control']['info']) if 'info' in cfg['control'] else 0
     cfg['data_split_mode'] = cfg['control']['data_split_mode']
+
     if cfg['control']['update_best_model'] == 'g':
         cfg['update_best_model'] = 'global'
     elif cfg['control']['update_best_model'] == 'l':
@@ -213,25 +246,12 @@ def process_control():
         cfg['num_nodes'] = 9999999
 
     if 'compress_transmission' in cfg['control']:
-        cfg['compress_transmission'] = True if int(cfg['control']['compress_transmission']) == 1 else False
-    if 'experiment_size' in cfg['control']:
-        if cfg['control']['experiment_size'] == 'l':
-            cfg['experiment_size'] = 'large'
-    
-    cfg['fine_tune'] = False
-    if 'fine_tune' in cfg:
-        cfg['fine_tune'] = True if int(cfg['fine_tune']) == 1 else False
-    if 'fine_tune_lr' in cfg:
-        cfg['fine_tune_lr'] = float(cfg['fine_tune_lr'])
-    if 'fine_tune_batch_size':
-        cfg['fine_tune_batch_size'] = int(cfg['fine_tune_batch_size'])
-    if 'fine_tune_epoch':
-        cfg['fine_tune_epoch'] = int(cfg['fine_tune_epoch'])
-    if 'fix_layers':
-        cfg['fix_layers'] = cfg['fix_layers']
-    if 'fine_tune_scheduler':
-        cfg['fine_tune_scheduler'] = cfg['fine_tune_scheduler']
-    
+        cfg['compress_transmission'] = int(cfg['control']['compress_transmission']) == 1
+    if 'experiment_size' in cfg['control'] and cfg['control']['experiment_size'] == 'l':
+        cfg['experiment_size'] = 'large'
+
+    process_fine_tune()
+
     # Add size of layer of encoder and decoder
     cfg['ae'] = {'encoder_hidden_size': [256, 128], 'decoder_hidden_size': [128, 256]}
     # Add batch_size
@@ -255,11 +275,12 @@ def process_control():
     # add parameter to model
     # Example: cfg['model_name']: ae         
     global_epoch = 800
-    local_epoch = 5     
+    local_epoch = 5
     model_name = cfg['model_name']
     cfg[model_name]['shuffle'] = {'train': True, 'test': True}
     if cfg['train_mode'] == 'fedavg':
         if cfg['num_nodes'] == 1:
+            # simulate joint situation
             cfg[model_name]['fraction'] = 1
             cfg[model_name]['local_epoch'] = 1
             cfg[model_name]['optimizer_name'] = 'Adam'
@@ -308,20 +329,7 @@ def process_control():
                                      'test': batch_size[cfg['data_mode']][cfg['data_name']]}
     cfg[model_name]['num_epochs'] = global_epoch
 
-    if cfg['fine_tune'] == True:
-        # cfg[model_name]['momentum'] = 0.9
-        # cfg[model_name]['nesterov'] = True
-        cfg[model_name]['optimizer_name'] = 'SGD'
-        cfg[model_name]['momentum'] = 0
-        cfg[model_name]['nesterov'] = False
-        cfg[model_name]['betas'] = (0.9, 0.999)
-        cfg[model_name]['weight_decay'] = 5e-4
-        cfg[model_name]['batch_size'] = {'test': cfg['fine_tune_batch_size']}
-        cfg[model_name]['lr'] = cfg['fine_tune_lr']
-        cfg[model_name]['num_epochs'] = cfg['fine_tune_epoch']
-        cfg[model_name]['scheduler_name'] = cfg['fine_tune_scheduler']
-        cfg[model_name]['milestones'] = [10, 20, 30]
-        cfg[model_name]['factor'] = 0.1
+    print(f'--cfg:{cfg}')
     return
 
 def fix_parameters(model):

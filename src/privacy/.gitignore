@@ -129,3 +129,5 @@ res/
 federated_decoder/
 federated_privacy/*
 federated_privacy
+
+.DS_Store

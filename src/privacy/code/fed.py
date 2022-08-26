@@ -30,7 +30,7 @@ class Federation:
         self.global_optimizer_state_dict = self.global_optimizer.state_dict()
         
         self.new_global_model_parameter_dict = collections.defaultdict(int)
-        self.global_grade_item_for_user = collections.defaultdict(set)
+        self.items_for_each_user = collections.defaultdict(set)
 
         self.item_union_set_pre_calculated = collections.defaultdict(int)
         # self.batch_normalization_name = {}
@@ -49,19 +49,26 @@ class Federation:
                         # set bias to 0
                         m.bias.data.zero_()
 
-    def record_global_grade_item_for_user(self, dataset):
+    def record_items_for_each_user(self, dataset):
+        '''
+        Record each user's items
+        '''
         for i in range(cfg['num_users']['data']):
             for item in list(dataset[i]['item']):
-                self.global_grade_item_for_user[i].add(item.item())
+                self.items_for_each_user[i].add(item.item())
         return True
 
     def calculate_item_union_set(self, node_idx, user_list):
+        '''
+        For each model at each round, calculate how many items(points in the last layer)
+        have been activated
+        '''
         if node_idx in self.item_union_set_pre_calculated:
             return self.item_union_set_pre_calculated[node_idx]
 
         item_union_set = set()
         for user in user_list:
-            item_union_set = item_union_set | self.global_grade_item_for_user[user]
+            item_union_set = item_union_set | self.items_for_each_user[user]
         self.item_union_set_pre_calculated[node_idx] = item_union_set
         return self.item_union_set_pre_calculated[node_idx]
 

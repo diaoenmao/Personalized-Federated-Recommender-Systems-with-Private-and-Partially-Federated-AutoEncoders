@@ -67,9 +67,14 @@ log_interval: 0.25
 device: cuda
 resume_mode: 0
 verbose: False
-
 """
+import sys
+print(f'path shi: {sys.path}')
 
+import os
+
+cwd = os.getcwd()
+print(f'---cwd: {cwd}')
 # globals() 函数会以字典类型返回当前位置的全部全局变量。
 if 'cfg' not in globals():
     
