@@ -119,8 +119,8 @@ def runExperiment():
     # if cfg['world_size'] > 1:
     #     model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
 
-    # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
-    for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
+    # Train and Test the model for cfg['client'][cfg['model_name']]['num_epochs'] rounds
+    for epoch in range(last_epoch, cfg['client'][cfg['model_name']]['num_epochs'] + 1):
         train(data_loader['train'], model, optimizer, metric, logger, epoch)
         test(data_loader['test'], model, metric, logger, epoch)
         if scheduler is not None:
@@ -214,7 +214,7 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
                 lr = optimizer.param_groups[0]['lr'] if optimizer is not None else 0
                 epoch_finished_time = datetime.timedelta(seconds=round(_time * (len(data_loader) - i - 1)))
                 exp_finished_time = epoch_finished_time + datetime.timedelta(
-                    seconds=round((cfg[cfg['model_name']]['num_epochs'] - epoch) * _time * len(data_loader)))
+                    seconds=round((cfg['client'][cfg['model_name']]['num_epochs'] - epoch) * _time * len(data_loader)))
                 info = {'info': ['Model: {}'.format(cfg['model_tag']),
                                 'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
                                 'Learning rate: {:.6f}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
@@ -226,7 +226,7 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
             break
         # elif cfg['train_mode'] == 'fedavg' and cfg['control']['num_nodes'] == 'max':
         #     cur_data_point_num += 1
-        #     if cur_data_point_num == int(cfg[cfg['model_name']]['fraction'] * cfg['num_users']['data']):
+        #     if cur_data_point_num == int(cfg['client'][cfg['model_name']]['fraction'] * cfg['num_users']['data']):
         #         break
 
     logger.safe(False)

@@ -100,7 +100,7 @@ def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
             model.train(False)
 
             cur_num_users = data_split_info[m]['num_users']
-            batch_size = {'test': min(cur_num_users, cfg[cfg['model_name']]['batch_size']['test'])}
+            batch_size = {'test': min(cur_num_users, cfg['client'][cfg['model_name']]['batch_size']['test'])}
             # print('batch_size', batch_size)
             data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
           
@@ -131,140 +131,140 @@ def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
     logger.safe(False)
     return
 
-def fine_tune(dataset, data_split, data_split_info, global_model_state_dict, metric, train_logger, test_logger):
-    if cfg['target_mode'] == 'explicit':
-        metric_key = {'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']}
-    elif cfg['target_mode'] == 'implicit':
-        metric_key = {'train': ['Loss', 'MAP'], 'test': ['Loss', 'Accuracy', 'MAP']}
+# def fine_tune(dataset, data_split, data_split_info, global_model_state_dict, metric, train_logger, test_logger):
+#     if cfg['target_mode'] == 'explicit':
+#         metric_key = {'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']}
+#     elif cfg['target_mode'] == 'implicit':
+#         metric_key = {'train': ['Loss', 'MAP'], 'test': ['Loss', 'Accuracy', 'MAP']}
 
-    train_dataset = dataset['train']
-    test_dataset = dataset['test']
+#     train_dataset = dataset['train']
+#     test_dataset = dataset['test']
 
-    train_evaluation_record = collections.defaultdict(dict)
-    test_evaluation_record = collections.defaultdict(dict)
-    # Iterate through all nodes
-    for m in range(len(data_split_info)):
-        if m % int((len(data_split_info) * cfg['log_interval']) + 1) == 0:
-            print('cur_fine_tune_percentage', m, len(data_split_info), str(100 * m / len(data_split_info))+'%')
-        cur_num_users = data_split_info[m]['num_users']
-        cur_num_items = data_split_info[m]['num_items']
+#     train_evaluation_record = collections.defaultdict(dict)
+#     test_evaluation_record = collections.defaultdict(dict)
+#     # Iterate through all nodes
+#     for m in range(len(data_split_info)):
+#         if m % int((len(data_split_info) * cfg['log_interval']) + 1) == 0:
+#             print('cur_fine_tune_percentage', m, len(data_split_info), str(100 * m / len(data_split_info))+'%')
+#         cur_num_users = data_split_info[m]['num_users']
+#         cur_num_items = data_split_info[m]['num_items']
 
-        batch_size = {'train': min(cur_num_users, cfg['fine_tune_batch_size'])}
-        train_split = SplitDataset(train_dataset, data_split[m])
-        train_data_loader_m = make_data_loader({'train': train_split}, batch_size)['train']
+#         batch_size = {'train': min(cur_num_users, cfg['fine_tune_batch_size'])}
+#         train_split = SplitDataset(train_dataset, data_split[m])
+#         train_data_loader_m = make_data_loader({'train': train_split}, batch_size)['train']
 
-        batch_size = {'test': min(cur_num_users, cfg['fine_tune_batch_size'])}
-        test_split = SplitDataset(test_dataset, data_split[m])
-        test_data_loader_m = make_data_loader({'test': test_split}, batch_size)['test']
+#         batch_size = {'test': min(cur_num_users, cfg['fine_tune_batch_size'])}
+#         test_split = SplitDataset(test_dataset, data_split[m])
+#         test_data_loader_m = make_data_loader({'test': test_split}, batch_size)['test']
 
-        # print('---', sorted(train_split))
-        model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
-                'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items)'.format(cfg['model_name']))
-        model.load_state_dict(copy.deepcopy(global_model_state_dict))
-        model.to(cfg['device'])
-        fix_parameters(model)
-        init_final_layer(model)
-        optimizer = make_optimizer(model, cfg['model_name'], is_fine_tune=True)
-        scheduler = make_scheduler(optimizer, cfg['model_name'])
+#         # print('---', sorted(train_split))
+#         model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
+#                 'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items)'.format(cfg['model_name']))
+#         model.load_state_dict(copy.deepcopy(global_model_state_dict))
+#         model.to(cfg['device'])
+#         fix_parameters(model)
+#         init_final_layer(model)
+#         optimizer = make_optimizer(model, cfg['model_name'], is_fine_tune=True)
+#         scheduler = make_scheduler(optimizer, cfg['model_name'])
 
-        train_set = set()
-        test_set = set()
+#         train_set = set()
+#         test_set = set()
 
-        for epoch in range(1, cfg['fine_tune_epoch']+1):
-            train_total_input_size = 0
-            train_total_evaluation = collections.defaultdict(int)
-            model.train(True)
-            for i, original_input in enumerate(train_data_loader_m):
-                input = copy.deepcopy(original_input)
-                input = collate(input)
+#         for epoch in range(1, cfg['fine_tune_epoch']+1):
+#             train_total_input_size = 0
+#             train_total_evaluation = collections.defaultdict(int)
+#             model.train(True)
+#             for i, original_input in enumerate(train_data_loader_m):
+#                 input = copy.deepcopy(original_input)
+#                 input = collate(input)
 
-                # temp = copy.deepcopy(input['user']).tolist()
-                # for item in temp:
-                #     train_set.add(item)
+#                 # temp = copy.deepcopy(input['user']).tolist()
+#                 # for item in temp:
+#                 #     train_set.add(item)
 
-                # print('train_input', input)
-                input_size = len(input['target_{}'.format(cfg['data_mode'])])
-                input = to_device(input, cfg['device'])
-                output = model(input)
-                if optimizer is not None:
-                    # Zero the gradient
-                    optimizer.zero_grad()
-                    # Calculate the gradient of each parameter
-                    output['loss'].backward()
-                    # Clips gradient norm of an iterable of parameters.
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
-                    # Perform a step of parameter through gradient descent Update
-                    optimizer.step()
-                evaluation = metric.evaluate(metric.metric_name['train'], input, output)
-                # print('evaluation', evaluation)
-                if not np.isnan(evaluation[metric_key['train'][-1]]):
-                    train_total_input_size += input_size
-                    for key in evaluation:
-                        train_total_evaluation[key] += evaluation[key] * input_size
-            if scheduler is not None:
-                scheduler.step()
-            # print('train_total_evaluation', train_total_evaluation)
-            train_evaluation_record[m][epoch] = collections.defaultdict(dict)
-            train_evaluation_record[m][epoch]['train_total_input_size'] = train_total_input_size
-            train_evaluation_record[m][epoch]['train_total_evaluation'] = copy.deepcopy(train_total_evaluation)
+#                 # print('train_input', input)
+#                 input_size = len(input['target_{}'.format(cfg['data_mode'])])
+#                 input = to_device(input, cfg['device'])
+#                 output = model(input)
+#                 if optimizer is not None:
+#                     # Zero the gradient
+#                     optimizer.zero_grad()
+#                     # Calculate the gradient of each parameter
+#                     output['loss'].backward()
+#                     # Clips gradient norm of an iterable of parameters.
+#                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+#                     # Perform a step of parameter through gradient descent Update
+#                     optimizer.step()
+#                 evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+#                 # print('evaluation', evaluation)
+#                 if not np.isnan(evaluation[metric_key['train'][-1]]):
+#                     train_total_input_size += input_size
+#                     for key in evaluation:
+#                         train_total_evaluation[key] += evaluation[key] * input_size
+#             if scheduler is not None:
+#                 scheduler.step()
+#             # print('train_total_evaluation', train_total_evaluation)
+#             train_evaluation_record[m][epoch] = collections.defaultdict(dict)
+#             train_evaluation_record[m][epoch]['train_total_input_size'] = train_total_input_size
+#             train_evaluation_record[m][epoch]['train_total_evaluation'] = copy.deepcopy(train_total_evaluation)
 
-            with torch.no_grad():
-                model.train(False)
-                test_total_input_size = 0
-                test_total_evaluation = collections.defaultdict(int)
-                for i, original_input in enumerate(test_data_loader_m):
-                    input = copy.deepcopy(original_input)
-                    input = collate(input)
+#             with torch.no_grad():
+#                 model.train(False)
+#                 test_total_input_size = 0
+#                 test_total_evaluation = collections.defaultdict(int)
+#                 for i, original_input in enumerate(test_data_loader_m):
+#                     input = copy.deepcopy(original_input)
+#                     input = collate(input)
 
-                    # temp = copy.deepcopy(input['user']).tolist()
-                    # for item in temp:
-                    #     test_set.add(item)
+#                     # temp = copy.deepcopy(input['user']).tolist()
+#                     # for item in temp:
+#                     #     test_set.add(item)
 
-                    # print('test_input', input)
-                    input_size = len(input['target_{}'.format(cfg['data_mode'])])
-                    input = to_device(input, cfg['device'])
-                    output = model(input)
-                    evaluation = metric.evaluate(metric.metric_name['test'], input, output)
-                    if not np.isnan(evaluation[metric_key['test'][-1]]):
-                        test_total_input_size += input_size
-                        for key in evaluation:
-                            test_total_evaluation[key] += evaluation[key] * input_size
-                test_evaluation_record[m][epoch] = collections.defaultdict(dict)
-                test_evaluation_record[m][epoch]['test_total_input_size'] = test_total_input_size
-                test_evaluation_record[m][epoch]['test_total_evaluation'] = copy.deepcopy(test_total_evaluation)
-        # print('train_set', train_set)
-        # print('test_set', test_set)
-        # print(train_set == test_set)
-        # break
-        # if m == 9:
-        #   break
-    for epoch in range(1, cfg['fine_tune_epoch']+1):
-        train_logger.safe(True)
-        for m in train_evaluation_record.keys():
-            evaluation = train_evaluation_record[m][epoch]['train_total_evaluation']
-            input_size = train_evaluation_record[m][epoch]['train_total_input_size']
-            train_logger.append(evaluation, 'train', input_size, mean=True, is_fine_tune=True)
-            if m % int((len(data_split_info) * cfg['log_interval']) + 1) == 0:
-                info = {'info': ['Model: {}'.format(cfg['model_tag']), 
-                             'fine_tune_Train_Epoch: {}({:.0f}%)'.format(epoch, 100. * m / len(data_split_info)),
-                             'ID: {}({}/{})'.format(m, m + 1, len(data_split_info))]}
-                train_logger.append(info, 'train', mean=False)
-                print(train_logger.write('train', metric.metric_name['train']))
-        train_logger.safe(False)
+#                     # print('test_input', input)
+#                     input_size = len(input['target_{}'.format(cfg['data_mode'])])
+#                     input = to_device(input, cfg['device'])
+#                     output = model(input)
+#                     evaluation = metric.evaluate(metric.metric_name['test'], input, output)
+#                     if not np.isnan(evaluation[metric_key['test'][-1]]):
+#                         test_total_input_size += input_size
+#                         for key in evaluation:
+#                             test_total_evaluation[key] += evaluation[key] * input_size
+#                 test_evaluation_record[m][epoch] = collections.defaultdict(dict)
+#                 test_evaluation_record[m][epoch]['test_total_input_size'] = test_total_input_size
+#                 test_evaluation_record[m][epoch]['test_total_evaluation'] = copy.deepcopy(test_total_evaluation)
+#         # print('train_set', train_set)
+#         # print('test_set', test_set)
+#         # print(train_set == test_set)
+#         # break
+#         # if m == 9:
+#         #   break
+#     for epoch in range(1, cfg['fine_tune_epoch']+1):
+#         train_logger.safe(True)
+#         for m in train_evaluation_record.keys():
+#             evaluation = train_evaluation_record[m][epoch]['train_total_evaluation']
+#             input_size = train_evaluation_record[m][epoch]['train_total_input_size']
+#             train_logger.append(evaluation, 'train', input_size, mean=True, is_fine_tune=True)
+#             if m % int((len(data_split_info) * cfg['log_interval']) + 1) == 0:
+#                 info = {'info': ['Model: {}'.format(cfg['model_tag']), 
+#                              'fine_tune_Train_Epoch: {}({:.0f}%)'.format(epoch, 100. * m / len(data_split_info)),
+#                              'ID: {}({}/{})'.format(m, m + 1, len(data_split_info))]}
+#                 train_logger.append(info, 'train', mean=False)
+#                 print(train_logger.write('train', metric.metric_name['train']))
+#         train_logger.safe(False)
 
-        test_logger.safe(True)
-        for m in test_evaluation_record.keys():
-            evaluation = test_evaluation_record[m][epoch]['test_total_evaluation']
-            input_size = test_evaluation_record[m][epoch]['test_total_input_size']
-            test_logger.append(evaluation, 'test', input_size, mean=True, is_fine_tune=True)
-        info = {'info': ['Model: {}'.format(cfg['model_tag']), 
-                         'fine_tune_Test_Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
-        test_logger.append(info, 'test', mean=False)
-        print(test_logger.write('test', metric.metric_name['test']))
-        test_logger.safe(False)
-    # print('train_evaluation_record', train_evaluation_record)
-    # print('test_evaluation_record', test_evaluation_record)
-    return
+#         test_logger.safe(True)
+#         for m in test_evaluation_record.keys():
+#             evaluation = test_evaluation_record[m][epoch]['test_total_evaluation']
+#             input_size = test_evaluation_record[m][epoch]['test_total_input_size']
+#             test_logger.append(evaluation, 'test', input_size, mean=True, is_fine_tune=True)
+#         info = {'info': ['Model: {}'.format(cfg['model_tag']), 
+#                          'fine_tune_Test_Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+#         test_logger.append(info, 'test', mean=False)
+#         print(test_logger.write('test', metric.metric_name['test']))
+#         test_logger.safe(False)
+#     # print('train_evaluation_record', train_evaluation_record)
+#     # print('test_evaluation_record', test_evaluation_record)
+#     return
 
 if __name__ == "__main__":
     main()

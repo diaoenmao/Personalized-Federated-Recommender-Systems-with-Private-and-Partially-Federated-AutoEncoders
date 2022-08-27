@@ -108,7 +108,7 @@ class Metric(object):
         return metric_name
 
     def make_pivot(self):
-        if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'NFP']:
+        if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'Douban']:
             if cfg['target_mode'] == 'explicit':
                 pivot = float('inf')
                 pivot_direction = 'down'

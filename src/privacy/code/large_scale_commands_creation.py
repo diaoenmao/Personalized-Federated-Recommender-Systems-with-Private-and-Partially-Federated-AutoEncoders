@@ -55,7 +55,7 @@ control:
   num_nodes: 100 (1, 100, 300, max)
   compress_transmission: 1 (1: compress, 0: not compress)
   experiment_size: 'l' (l(l): transfer parameters to cpu)
-  
+
 # experiment
 fine_tune: 0
 fine_tune_lr: 0.1
@@ -122,6 +122,12 @@ def main():
             ml1m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml1m_controls)
+        if 'Douban' in data:
+            control_name = [[['Douban'], ['user'], ['ex', 'im'], ['joint'], ['NA'], ['ae'],
+                             ['0','1'], ['iid'], ['g'], ['1'], ['0'], ['l']]]
+            douban_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
+                                            device, control_name)
+            controls.extend(douban_controls)
         if 'ML10M' in data:
             control_name = [[['ML10M'], ['user'], ['ex', 'im'], ['joint'], ['NA'], ['ae'],
                              ['0','1'], ['iid'], ['g'], ['1'], ['0'], ['l']]]
@@ -139,52 +145,65 @@ def main():
         script_name = [['{}_privacy_federated_all.py'.format(run)]]
         if 'ML100K' in data:
             control_name = [[['ML100K'], ['user'], ['ex','im'], ['fedavg'], ['all','de'], ['ae'],
-                             ['0','1'], ['iid'], ['g','l'], ['100','300','max'], ['0'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0'], ['l']]]
             ml100k_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml100k_controls)
         if 'ML1M' in data:
             control_name = [[['ML1M'], ['user'], ['ex','im'], ['fedavg'], ['all','de'], ['ae'],
-                             ['0','1'], ['iid'], ['g','l'], ['100','300','max'], ['0'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0'], ['l']]]
             ml1m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml1m_controls)
+        if 'Douban' in data:
+            control_name = [[['Douban'], ['user'], ['ex','im'], ['fedavg'], ['all','de'], ['ae'],
+                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0'], ['l']]]
+            douban_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
+                                            device, control_name)
+            controls.extend(douban_controls)
         if 'ML10M' in data:
             control_name = [[['ML10M'], ['user'], ['ex','im'], ['fedavg'], ['all','de'], ['ae'],
-                             ['0','1'], ['iid'], ['g','l'], ['100','300'], ['0'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300'], ['0'], ['l']]]
             ml10m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml10m_controls)
         if 'ML20M' in data:
             control_name = [[['ML20M'], ['user'], ['ex','im'], ['fedavg'], ['all','de'], ['ae'],
-                             ['0','1'], ['iid'], ['g','l'], ['100','300'], ['0'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300'], ['0'], ['l']]]
             ml20m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml20m_controls)
+        
     elif file == 'privacy_federated_decoder':
         controls = []
         script_name = [['{}_privacy_federated_decoder.py'.format(run)]]
         if 'ML100K' in data:
             control_name = [[['ML100K'], ['user'], ['ex','im'], ['fedavg'], ['de'], ['ae'],
-                             ['0','1'], ['iid'], ['g','l'], ['100','300','max'], ['0','1'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0','1'], ['l']]]
             ml100k_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml100k_controls)
         if 'ML1M' in data:
             control_name = [[['ML1M'], ['user'], ['ex','im'], ['fedavg'], ['de'], ['ae'],
-                             ['0','1'], ['iid'], ['g','l'], ['100','300','max'], ['0','1'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0','1'], ['l']]]
             ml1m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml1m_controls)
+        if 'Douban' in data:
+            control_name = [[['Douban'], ['user'], ['ex','im'], ['fedavg'], ['de'], ['ae'],
+                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0','1'], ['l']]]
+            douban_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
+                                            device, control_name)
+            controls.extend(douban_controls)
         if 'ML10M' in data:
             control_name = [[['ML10M'], ['user'], ['ex','im'], ['fedavg'], ['de'], ['ae'],
-                             ['0','1'], ['iid'], ['g','l'], ['100','300'], ['0','1'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300'], ['0','1'], ['l']]]
             ml10m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml10m_controls)
         if 'ML20M' in data:
             control_name = [[['ML20M'], ['user'], ['ex','im'], ['fedavg'], ['de'], ['ae'],
-                             ['0','1'], ['iid'], ['g','l'], ['100','300'], ['0','1'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300'], ['0','1'], ['l']]]
             ml20m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml20m_controls)

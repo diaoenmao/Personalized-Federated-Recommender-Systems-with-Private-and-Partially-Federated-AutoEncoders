@@ -17,7 +17,8 @@ def split_dataset(dataset, num_nodes, data_split_mode):
       
         data_split['train'], data_split_info = iid(dataset['train'], num_nodes)
         data_split['test'], _ = iid(dataset['test'], num_nodes)
-    
+
+        # print(f'----data_split: {data_split}')
     # elif 'non-iid' in cfg['data_split_mode']:
     #     data_split['train'], label_split = non_iid(dataset['train'], num_users)
     #     data_split['test'], _ = non_iid(dataset['test'], num_users, label_split)
@@ -28,11 +29,12 @@ def split_dataset(dataset, num_nodes, data_split_mode):
 
 
 def iid(dataset, num_nodes):
-    if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M']:
+    if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'Douban']:
         pass
     else:
         raise ValueError('Not valid data name')
     
+    print(f"iid: {cfg['num_users']['data']}, {num_nodes}")
     user_per_node = int(cfg['num_users']['data'] / num_nodes)
     data_split, idx = {}, list(range(cfg['num_users']['data']))
     data_split_info = collections.defaultdict(dict)
@@ -43,12 +45,17 @@ def iid(dataset, num_nodes):
         data_split_info[i]['num_users'] = user_per_node_i
         data_split_info[i]['num_items'] = cfg['num_items']['data']
         idx = list(set(idx) - set(data_split[i]))
+
+    # data_split_info[0]['num_items'].sort()
+    
     # for i in range(len(idx)): 
     #     data_split[i].append(idx[i])
     #     data_split_info[i]['num_users'] += 1
     # print(data_split_info)
     # print('gff', data_split_info[0])
     # print('wudi', data_split_info)
+    # data_split[0].sort()
+    # print(f'data_split_sort', data_split[0])
     return data_split, data_split_info
 
 
@@ -96,6 +103,8 @@ class SplitDataset(Dataset):
         return len(self.idx)
 
     def __getitem__(self, index):
+        # print('gett', self.idx[index])
+        # print('?/', self.dataset[490])
         input = self.dataset[self.idx[index]]
         return input
 
@@ -143,7 +152,7 @@ def fetch_dataset(data_name, model_name=None, verbose=True):
     
     root = os.path.join('data', '{}'.format(data_name))
     # root = './data/{}'.format(data_name)
-    if data_name in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'taobaoclicksmall', 'taobaoclickmedium', 'taobaoclicklarge']:
+    if data_name in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'Douban', 'taobaoclicksmall', 'taobaoclickmedium', 'taobaoclicklarge']:
         if data_name in ['taobaoclicksmall', 'taobaoclickmedium', 'taobaoclicklarge']:
             root = os.path.join('data', 'taobaoclick')
         # initialize the corresponding class of data_name in datasets / movielens.py
@@ -268,18 +277,20 @@ def make_data_loader(dataset, batch_size=None, shuffle=None, sampler=None):
     """
 
     data_loader = {}
-    cur_model = cfg['model_name']
+    model_name = cfg['model_name']
     # iterate dataset['train'] and dataset['test']
     for k in dataset:
         # if we dont pass batch_size parameter, use default parameter in cfg
         # default parameter is defined in utils.py / process_control()
-        _batch_size = cfg[cur_model]['batch_size'][k] if batch_size is None else batch_size[k]
-        if cfg['train_mode'] == 'fedsgd':
-            _batch_size = int(cfg[cfg['model_name']]['fraction'] * cfg['num_users']['data'])
+        # print(f"````make_data_loader: {cfg['client'][model_name]['batch_size']}")
+        _batch_size = cfg['client'][model_name]['batch_size'][k] if batch_size is None else batch_size[k]
+        # print(f'!@!@ batch_size: {_batch_size}')
+        # if cfg['train_mode'] == 'fedsgd':
+        #     _batch_size = int(cfg['client'][cfg['model_name']]['fraction'] * cfg['num_users']['data'])
         if cfg['train_mode'] == 'fedavg' and cfg['control']['num_nodes'] == 'max':
             _batch_size = 1
         # if we dont pass shuffle parameter, use default parameter in cfg
-        _shuffle = cfg[cur_model]['shuffle'][k] if shuffle is None else shuffle[k]
+        _shuffle = cfg['client'][model_name]['shuffle'][k] if shuffle is None else shuffle[k]
         # if the cfg['device'] is cuda, we set pin_memory to True
         _pin_memory = True if cfg['device'] == 'cuda' else False
 

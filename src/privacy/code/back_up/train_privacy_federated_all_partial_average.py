@@ -80,7 +80,7 @@ def runExperiment():
 
     # if data_split is None:
     data_split, data_split_info = split_dataset(dataset, cfg['num_nodes'], cfg['data_split_mode'])
-    print('train_data_split', data_split)
+    # print('train_data_split', data_split)
     # data.py / make_data_loader(dataset)
     # data_loader is a dict, has 2 keys - 'train', 'test'
     # data_loader['train'] is the instance of DataLoader (class in PyTorch), which is iterable (可迭代对象)
@@ -130,8 +130,8 @@ def runExperiment():
     b = a['param_groups'][0]['lr']
     global_scheduler = make_scheduler(global_optimizer, cfg['model_name'])
 
-    # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
-    for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
+    # Train and Test the model for cfg['client'][cfg['model_name']]['num_epochs'] rounds
+    for epoch in range(last_epoch, cfg['client'][cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
         
         global_optimizer_lr = global_optimizer.state_dict()['param_groups'][0]['lr']
@@ -331,7 +331,7 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
         for m in range(len(data_split)):
 
             cur_num_users = data_split_info[m]['num_users']
-            batch_size = {'test': min(cur_num_users, cfg[cfg['model_name']]['batch_size']['test'])}
+            batch_size = {'test': min(cur_num_users, cfg['client'][cfg['model_name']]['batch_size']['test'])}
             # print('batch_size', batch_size)
             data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
           
@@ -363,7 +363,7 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
 
 
 def make_local(dataset, data_split, data_split_info, federation, metric, global_optimizer_lr):
-    num_active_nodes = int(np.ceil(cfg[cfg['model_name']]['fraction'] * cfg['num_nodes']))
+    num_active_nodes = int(np.ceil(cfg['client'][cfg['model_name']]['fraction'] * cfg['num_nodes']))
     # print('num_active_nodes', num_active_nodes)
     node_idx = torch.arange(cfg['num_nodes'])[torch.randperm(cfg['num_nodes'])[:num_active_nodes]].tolist()
     
@@ -375,7 +375,7 @@ def make_local(dataset, data_split, data_split_info, federation, metric, global_
         cur_node_index = node_idx[m]
         user_per_node_i = data_split_info[cur_node_index]['num_users']
         # participated_user.append(user_per_node_i)
-        batch_size = {'train': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['train'])}
+        batch_size = {'train': min(user_per_node_i, cfg['client'][cfg['model_name']]['batch_size']['train'])}
         data_loader_m = make_data_loader({'train': SplitDataset(dataset, 
             data_split[cur_node_index])}, batch_size)['train']
 

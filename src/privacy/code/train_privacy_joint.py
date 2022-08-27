@@ -9,7 +9,7 @@ import torch
 import copy
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
-from data import fetch_dataset, make_data_loader
+from data import fetch_dataset, make_data_loader, split_dataset, SplitDataset
 from metrics import Metric
 from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
 from logger import make_logger
@@ -64,25 +64,27 @@ def runExperiment():
     # utils.py / process_dataset(dataset)
     # add some key:value (size, num) to cfg
     process_dataset(dataset)
-    
+    print(f'-----joint_dataset: {dataset}')
     # data.py / make_data_loader(dataset)
     # data_loader is a dict, has 2 keys - 'train', 'test'
     # data_loader['train'] is the instance of DataLoader (class in PyTorch), which is iterable (可迭代对象)
-    data_loader = make_data_loader(dataset)
+    # data_loader = make_data_loader(dataset)
 
+    data_split, data_split_info = split_dataset(dataset, 1, cfg['data_split_mode'])
     # models / cfg['model_name'].py initializes the model, for example, models / ae.py / class AE
     # .to(cfg["device"]) means copy the tensor to the specific GPU or CPU, and run the 
     # calculation there.
     # model is the instance of class AE (in models / ae.py). It contains the training process of 
     #   Encoder and Decoder.
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    print("model", model)
+    print('66666666666model', model)
+    print("model_name", cfg['model_name'])
 
     if cfg['model_name'] != 'base':
         # utils.py / make_optimizer()
-        optimizer = make_optimizer(model, cfg['model_name'])
+        optimizer = make_optimizer(model, cfg['model_name'], 'client')
         # utils.py / make_scheduler()
-        scheduler = make_scheduler(optimizer, cfg['model_name'])
+        scheduler = make_scheduler(optimizer, cfg['model_name'], 'client')
     else:
         optimizer = None
         scheduler = None
@@ -119,10 +121,29 @@ def runExperiment():
     # if cfg['world_size'] > 1:
     #     model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
 
-    # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
-    for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
-        train(data_loader['train'], model, optimizer, metric, logger, epoch)
-        test(data_loader['test'], model, metric, logger, epoch)
+    # Train and Test the model for cfg['client'][cfg['model_name']]['num_epochs'] rounds
+    for epoch in range(last_epoch, cfg['client'][cfg['model_name']]['num_epochs'] + 1):
+        print(f"--epoch: {epoch}, global_optimizer_lr: {optimizer.state_dict()['param_groups'][0]['lr']}")
+        # print(f"!!!!joint_split: {data_split['train'][0]}")
+        data_loader_train = make_data_loader(
+            dataset={'train': SplitDataset(dataset['train'], data_split['train'][0])}, 
+            batch_size={
+                'train': cfg['client'][cfg['model_name']]['batch_size']['train']
+            }
+        )['train']
+
+        data_loader_test = make_data_loader(
+            dataset={'test': SplitDataset(dataset['test'], data_split['test'][0])}, 
+            batch_size={
+                'test': cfg['client'][cfg['model_name']]['batch_size']['test']
+            }
+        )['test']
+        train(data_loader_train, model, optimizer, metric, logger, epoch)
+        test(data_loader_test, model, metric, logger, epoch)
+
+        # train(data_loader['train'], model, optimizer, metric, logger, epoch)
+        # test(data_loader['test'], model, metric, logger, epoch)
+        
         if scheduler is not None:
             scheduler.step()
         model_state_dict = model.state_dict()
@@ -169,31 +190,43 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
         None
     """
 
+    # print(f"optimizer_state_dict_00: {optimizer.state_dict()}")
+    # return
     logger.safe(True)
     # Set the model in training mode
     model.train(True)
     start_time = time.time()
     # Iterate data_loader
+    print('zheli')
+    # print(f"model.state_dict", model.state_dict())
     for i, input in enumerate(data_loader):
         # utils.py / collate(input)
         # input is the batch_size data that has been processed by input_collate(batch)
         # input_collate(batch) is in data.py / input_collate(batch)
+        # print(f"joint_input: {input['target_user'][0]}")
+        # break
         input = collate(input)
+        # print(f"joint_input: {input['rating'][0]}")
         # how many datapoints are calculated in current round
-        input_size = len(input[cfg['data_mode']])
+        input_size = len(input['target_{}'.format(cfg['data_mode'])])
         if input_size == 0:
             continue
         input = to_device(input, cfg['device'])
+        # print('--input', input)
         # put the input in model => forward() => train Encoder and Decoder and get loss
         output = model(input)
+        # print('--output', output)
         # output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
-
+        # break
         # update parameters of model
         if optimizer is not None:
             # Zero the gradient
             optimizer.zero_grad()
             # Calculate the gradient of each parameter
             output['loss'].backward()
+            
+            # print(f"output_loss: {output['loss']}")
+            # break
             # Clips gradient norm of an iterable of parameters.
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
             # Perform a step of parameter through gradient descent Update
@@ -208,7 +241,7 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
             lr = optimizer.param_groups[0]['lr'] if optimizer is not None else 0
             epoch_finished_time = datetime.timedelta(seconds=round(_time * (len(data_loader) - i - 1)))
             exp_finished_time = epoch_finished_time + datetime.timedelta(
-                seconds=round((cfg[cfg['model_name']]['num_epochs'] - epoch) * _time * len(data_loader)))
+                seconds=round((cfg['client'][cfg['model_name']]['num_epochs'] - epoch) * _time * len(data_loader)))
             info = {'info': ['Model: {}'.format(cfg['model_tag']),
                              'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
                              'Learning rate: {:.6f}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
@@ -216,6 +249,7 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
     
+    # print(f"optimizer_state_dict: {optimizer.state_dict()}")
     logger.safe(False)
     return
 

@@ -123,8 +123,8 @@ def runExperiment():
     last_epoch = 1
     logger = make_logger('../output/runs/train_{}'.format(cfg['model_tag']))
 
-    # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
-    for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
+    # Train and Test the model for cfg['client'][cfg['model_name']]['num_epochs'] rounds
+    for epoch in range(last_epoch, cfg['client'][cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
         node_idx = train(dataset['train'], data_split['train'], data_split_info, federation, metric, logger, epoch)
         federation.update_global_model_momentum(node_idx)
@@ -226,7 +226,7 @@ def test(dataset, data_split, data_split_info, federation, metric, logger, epoch
     with torch.no_grad():
         for m in range(len(data_split)):
             user_per_node_i = data_split_info[m]['num_users']
-            batch_size = {'test': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['test'])}
+            batch_size = {'test': min(user_per_node_i, cfg['client'][cfg['model_name']]['batch_size']['test'])}
             data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
             model = federation.load_local_test_model_dict(m)['model']
             # model.to(cfg['device'])
@@ -254,10 +254,10 @@ def test_batchnorm(dataset, data_split, data_split_info, federation, metric, log
     with torch.no_grad():
         # for m in range(len(data_split)):
         # user_per_node_i = data_split_info[m]['num_users']
-        # batch_size = {'test': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['test'])}
+        # batch_size = {'test': min(user_per_node_i, cfg['client'][cfg['model_name']]['batch_size']['test'])}
         # data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
 
-        batch_size = {'test': cfg[cfg['model_name']]['batch_size']['test']}
+        batch_size = {'test': cfg['client'][cfg['model_name']]['batch_size']['test']}
         data_loader = make_data_loader({'test': dataset}, batch_size)['test']
         model = federation.get_global_model()
         # model.to(cfg['device'])
@@ -280,7 +280,7 @@ def test_batchnorm(dataset, data_split, data_split_info, federation, metric, log
 
     return info
 def make_local(dataset, data_split, data_split_info, federation, metric):
-    num_active_nodes = int(np.ceil(cfg[cfg['model_name']]['fraction'] * cfg['num_nodes']))
+    num_active_nodes = int(np.ceil(cfg['client'][cfg['model_name']]['fraction'] * cfg['num_nodes']))
     # print('num_active_nodes', num_active_nodes)
     node_idx = torch.arange(cfg['num_nodes'])[torch.randperm(cfg['num_nodes'])[:num_active_nodes]].tolist()
     # local_parameters, param_idx = federation.distribute(node_idx)
@@ -291,7 +291,7 @@ def make_local(dataset, data_split, data_split_info, federation, metric):
         cur_node_index = node_idx[m]
         user_per_node_i = data_split_info[cur_node_index]['num_users']
         # participated_user.append(user_per_node_i)
-        batch_size = {'train': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['train'])}
+        batch_size = {'train': min(user_per_node_i, cfg['client'][cfg['model_name']]['batch_size']['train'])}
         data_loader_m = make_data_loader({'train': SplitDataset(dataset, 
             data_split[cur_node_index])}, batch_size)['train']
 

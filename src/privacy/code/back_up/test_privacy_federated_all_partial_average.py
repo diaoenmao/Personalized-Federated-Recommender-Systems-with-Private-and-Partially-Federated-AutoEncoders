@@ -86,7 +86,7 @@ def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
         model.train(False)
         for m in range(len(data_split_info)):
             cur_num_users = data_split_info[m]['num_users']
-            batch_size = {'test': min(cur_num_users, cfg[cfg['model_name']]['batch_size']['test'])}
+            batch_size = {'test': min(cur_num_users, cfg['client'][cfg['model_name']]['batch_size']['test'])}
             # print('batch_size', batch_size)
             data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
           

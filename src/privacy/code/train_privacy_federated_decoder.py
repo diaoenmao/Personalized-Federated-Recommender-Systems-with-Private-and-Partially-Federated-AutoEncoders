@@ -107,20 +107,19 @@ def runExperiment():
     else:
         raise ValueError('Not valid target mode')
     
-    model = eval('models.{}(encoder_num_users=10, encoder_num_items=10,' 
-                'decoder_num_users=10, decoder_num_items=10)'.format(cfg['model_name']))
-    global_optimizer = make_optimizer(model, cfg['model_name'])
-    global_scheduler = make_scheduler(global_optimizer, cfg['model_name'])
+    model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    global_optimizer = make_optimizer(model, cfg['model_name'], 'client')
+    global_scheduler = make_scheduler(global_optimizer, cfg['model_name'], 'client')
 
     # Handle resuming the training situation
     if cfg['resume_mode'] == 1:
         result = resume(cfg['model_tag'])
         last_epoch = result['epoch']
         if last_epoch > 1:
-            federation.global_model.load_state_dict(result['model_state_dict'])
+            federation.server_model.load_state_dict(result['model_state_dict'])
             if cfg['model_name'] != 'base':
-                global_optimizer.load_state_dict(result['optimizer_state_dict'])
-                global_scheduler.load_state_dict(result['scheduler_state_dict'])
+                global_optimizer.load_state_dict(result['global_optimizer_state_dict'])
+                global_scheduler.load_state_dict(result['global_scheduler_state_dict'])
             logger = result['logger']
         else:
             logger_path = '../output/runs/train_{}'.format(cfg['model_tag'])
@@ -134,8 +133,8 @@ def runExperiment():
 
     
     # a = os.path.join()
-    # Train and Test the model for cfg[cfg['model_name']]['num_epochs'] rounds
-    for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
+    # Train and Test the model for cfg['client'][cfg['model_name']]['num_epochs'] rounds
+    for epoch in range(last_epoch, cfg['client'][cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
         
         global_optimizer_lr = global_optimizer.state_dict()['param_groups'][0]['lr']
@@ -149,8 +148,8 @@ def runExperiment():
             epoch, 
             global_optimizer_lr
         )
-        federation.update_global_model_momentum()
-        model_state_dict = federation.global_model.state_dict()
+        federation.update_server_model_momentum()
+        model_state_dict = federation.server_model.state_dict()
         info = test(
             dataset['test'], 
             data_split['test'], 
@@ -167,6 +166,9 @@ def runExperiment():
             logger.append_compress_activated_item_union_num(total_activated_item_union_num, epoch)
         logger.safe(False)
 
+        global_optimizer_state_dict = global_optimizer.state_dict()
+        global_scheduler_state_dict = global_scheduler.state_dict()
+        
         result = {
             'cfg': cfg, 
             'epoch': epoch + 1, 
@@ -174,6 +176,8 @@ def runExperiment():
             'info': info, 
             'logger': logger, 
             'model_state_dict': model_state_dict, 
+            'global_optimizer_state_dict': global_optimizer_state_dict, 
+            'global_scheduler_state_dict': global_scheduler_state_dict,
             'data_split': data_split, 
             'data_split_info': data_split_info
         }
@@ -259,10 +263,11 @@ def train(
                 data_split[node_idx[m]]
             )
             total_activated_item_union_num += len(item_union_set)
-        federation.generate_new_global_model_parameter_dict(
-            local[m].train(logger, federation, node_idx[m], global_optimizer_lr), 
-            len(node_idx), 
-            item_union_set
+        local_parameters = local[m].train(logger, federation, node_idx[m], global_optimizer_lr)
+        federation.generate_new_server_model_parameter_dict(
+            model_state_dict=local_parameters, 
+            total_client=len(node_idx), 
+            item_union_set=item_union_set
         )
 
         
@@ -297,7 +302,7 @@ def test(
         for m in range(len(data_split)):
             user_per_node_i = data_split_info[m]['num_users']
             batch_size = {
-                'test': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['test'])
+                'test': min(user_per_node_i, cfg['client'][cfg['model_name']]['batch_size']['test'])
             }
             data_loader = make_data_loader(
                 {'test': SplitDataset(dataset, data_split[m])}, 
@@ -306,7 +311,7 @@ def test(
 
             model = federation.load_local_model(m)
             model.to(cfg['device'])
-            model = federation.update_client_parameters_with_global_parameters(model)
+            model = federation.update_client_parameters_with_server_model_parameters(model)
             model.train(False)
             
             for i, original_input in enumerate(data_loader):
@@ -345,7 +350,7 @@ def test(
     return info
 
 def make_local(dataset, data_split, data_split_info, federation, metric):
-    num_active_nodes = int(np.ceil(cfg[cfg['model_name']]['fraction'] * cfg['num_nodes']))
+    num_active_nodes = int(np.ceil(cfg['client'][cfg['model_name']]['fraction'] * cfg['num_nodes']))
     node_idx = torch.arange(cfg['num_nodes'])[torch.randperm(cfg['num_nodes'])[:num_active_nodes]].tolist()
     local = [None for _ in range(num_active_nodes)]
 
@@ -353,12 +358,12 @@ def make_local(dataset, data_split, data_split_info, federation, metric):
         cur_node_index = node_idx[m]
         user_per_node_i = data_split_info[cur_node_index]['num_users']
 
-        batch_size = {'train': min(user_per_node_i, cfg[cfg['model_name']]['batch_size']['train'])}
+        batch_size = {'train': min(user_per_node_i, cfg['client'][cfg['model_name']]['batch_size']['train'])}
         data_loader_m = make_data_loader({'train': SplitDataset(dataset, 
             data_split[cur_node_index])}, batch_size)['train']
 
         cur_local_model = federation.load_local_model(cur_node_index)
-        cur_local_model = federation.update_client_parameters_with_global_parameters(cur_local_model)
+        cur_local_model = federation.update_client_parameters_with_server_model_parameters(cur_local_model)
         local[m] = Local(data_loader_m, cur_local_model, metric)
     return local, node_idx
 
@@ -375,13 +380,13 @@ class Local:
         model.to(cfg['device'])
         model.train(True)
 
-        optimizer = make_optimizer(model, cfg['model_name'])      
+        optimizer = make_optimizer(model, cfg['model_name'], 'client')      
         local_optimizer_state_dict = federation.get_local_optimizer_state_dict(cur_node_index) 
         local_optimizer_state_dict = to_device(local_optimizer_state_dict, cfg['device'])
         optimizer.load_state_dict(local_optimizer_state_dict) 
         optimizer.param_groups[0]['lr'] = global_optimizer_lr
 
-        for local_epoch in range(1, cfg[cfg['model_name']]['local_epoch'] + 1):
+        for local_epoch in range(1, cfg['client'][cfg['model_name']]['local_epoch'] + 1):
             for i, original_input in enumerate(self.data_loader):
                 input = copy.deepcopy(original_input)
                 input = collate(input)
