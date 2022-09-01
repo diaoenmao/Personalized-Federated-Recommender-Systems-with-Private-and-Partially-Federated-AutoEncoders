@@ -49,11 +49,12 @@ def runExperiment():
     if cfg['target_mode'] == 'explicit':
         metric = Metric({'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']})
     elif cfg['target_mode'] == 'implicit':
-        metric = Metric({'train': ['Loss', 'MAP'], 'test': ['Loss', 'Accuracy', 'MAP']})
+        metric = Metric({'train': ['Loss', 'NDCG'], 'test': ['Loss', 'Accuracy', 'NDCG']})
     else:
         raise ValueError('Not valid target mode')
     
     result = resume(cfg['model_tag'], load_tag='best')
+
 
     global_model_state_dict = result['model_state_dict']
     last_epoch = result['epoch']
@@ -65,7 +66,7 @@ def runExperiment():
     # print('data_split[test]', data_split['test'])
     data_split_info = result['data_split_info']
     model.load_state_dict(global_model_state_dict)
-    test_logger = make_logger('../output/runs/test_{}'.format(cfg['model_tag']))
+    # test_logger = make_logger('../output/runs/test_{}'.format(cfg['model_tag']))
     # test(dataset['test'], data_split['test'], data_split_info, model, metric, test_logger, last_epoch)
 
     result = resume(cfg['model_tag'], load_tag='checkpoint')
@@ -79,11 +80,16 @@ def runExperiment():
         result['compress_parameter_ratio_per_epoch'] = compress_parameter_ratio_per_epoch
         
     print('ggg')
-    if cfg['fine_tune'] == True:
-        print('ggg1')
-        fine_tune(dataset, data_split['train'], data_split_info, global_model_state_dict, metric, train_logger, test_logger)
+    # if cfg['fine_tune'] == True:
+    #     print('ggg1')
+    #     fine_tune(dataset, data_split['train'], data_split_info, global_model_state_dict, metric, train_logger, test_logger)
     
-    result = {'cfg': cfg, 'epoch': last_epoch, 'logger': {'train': train_logger, 'test': test_logger}}
+    result = {
+        'cfg': cfg, 
+        'epoch': last_epoch, 
+        'logger': {'train': train_logger},
+        'compress_parameter_ratio_per_epoch': compress_parameter_ratio_per_epoch
+    }
     save(result, '../output/result/{}.pt'.format(cfg['model_tag']))
     # draw_movielens_learning_curve()
     return
@@ -135,7 +141,7 @@ def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
 #     if cfg['target_mode'] == 'explicit':
 #         metric_key = {'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']}
 #     elif cfg['target_mode'] == 'implicit':
-#         metric_key = {'train': ['Loss', 'MAP'], 'test': ['Loss', 'Accuracy', 'MAP']}
+#         metric_key = {'train': ['Loss', 'NDCG'], 'test': ['Loss', 'Accuracy', 'NDCG']}
 
 #     train_dataset = dataset['train']
 #     test_dataset = dataset['test']

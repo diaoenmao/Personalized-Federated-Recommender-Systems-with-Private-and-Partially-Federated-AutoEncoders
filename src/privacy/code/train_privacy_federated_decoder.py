@@ -103,7 +103,7 @@ def runExperiment():
         # metric / class Metric
         # return the instance of Metric, which contains function and initial information
         #   we need for measuring the result
-        metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy', 'MAP']})
+        metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy', 'NDCG']})
     else:
         raise ValueError('Not valid target mode')
     
@@ -171,9 +171,9 @@ def runExperiment():
         
         result = {
             'cfg': cfg, 
-            'epoch': epoch + 1, 
-            'active_node_count': len(node_idx), 
+            'epoch': epoch + 1,  
             'info': info, 
+            'active_node_count': len(node_idx),
             'logger': logger, 
             'model_state_dict': model_state_dict, 
             'global_optimizer_state_dict': global_optimizer_state_dict, 
@@ -274,9 +274,10 @@ def train(
         if m % int((len(node_idx) * cfg['log_interval']) + 1) == 0:
             local_time = (time.time() - start_time) / (m + 1)
             epoch_finished_time = datetime.timedelta(seconds=local_time * (len(node_idx) - m - 1))
+            model_name = cfg['model_name']
             exp_finished_time = epoch_finished_time + datetime.timedelta(
-                seconds=round((cfg['num_epochs']['global'] - epoch) * local_time * num_active_nodes))
-            # exp_finished_time = 1
+                seconds=round((cfg['client'][model_name]['num_epochs'] - epoch) * local_time * len(node_idx)))
+
             info = {'info': ['Model: {}'.format(cfg['model_tag']), 
                              'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * m / len(node_idx)),
                              'ID: {}({}/{})'.format(node_idx[m], m + 1, len(node_idx)),

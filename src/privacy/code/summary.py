@@ -48,10 +48,10 @@ def runExperiment():
 
 def calculate_parameter_size(logger, data_loader, model, active_node_count):
     summary, decoder_size, last_layer_size = summarize(data_loader, model)
-    print('summary', summary, decoder_size, last_layer_size)
+    # print('summary', summary, decoder_size, last_layer_size)
     content, total = parse_summary(summary)
-    print(content)
-    print(total)
+    # print(content)
+    # print(total)
     
     compress_parameter_ratio_per_epoch = collections.defaultdict(int)
 

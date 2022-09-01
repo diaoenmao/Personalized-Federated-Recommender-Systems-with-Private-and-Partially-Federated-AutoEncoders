@@ -48,7 +48,7 @@ def runExperiment():
     if cfg['target_mode'] == 'explicit':
         metric = Metric({'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']})
     elif cfg['target_mode'] == 'implicit':
-        metric = Metric({'train': ['Loss', 'MAP'], 'test': ['Loss', 'Accuracy', 'MAP']})
+        metric = Metric({'train': ['Loss', 'NDCG'], 'test': ['Loss', 'Accuracy', 'NDCG']})
     else:
         raise ValueError('Not valid target mode')
     
@@ -68,9 +68,9 @@ def runExperiment():
     result = resume(cfg['model_tag'], load_tag='checkpoint')
     train_logger = result['logger'] if 'logger' in result else None
     print('ggg')
-    if cfg['fine_tune'] == True:
-        print('ggg1')
-        fine_tune(dataset, data_split['train'], data_split_info, global_model_state_dict, metric, train_logger, test_logger)
+    # if cfg['fine_tune'] == True:
+    #     print('ggg1')
+    #     fine_tune(dataset, data_split['train'], data_split_info, global_model_state_dict, metric, train_logger, test_logger)
     
     result = {'cfg': cfg, 'epoch': last_epoch, 'logger': {'train': train_logger, 'test': test_logger}}
     save(result, '../output/result/{}.pt'.format(cfg['model_tag']))
@@ -81,7 +81,7 @@ def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
     if cfg['target_mode'] == 'explicit':
         metric_key = {'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']}
     elif cfg['target_mode'] == 'implicit':
-        metric_key = {'train': ['Loss', 'MAP'], 'test': ['Loss', 'Accuracy', 'MAP']}
+        metric_key = {'train': ['Loss', 'NDCG'], 'test': ['Loss', 'Accuracy', 'NDCG']}
 
     logger.safe(True)
     with torch.no_grad():
@@ -121,7 +121,7 @@ def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
 #     if cfg['target_mode'] == 'explicit':
 #         metric_key = {'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']}
 #     elif cfg['target_mode'] == 'implicit':
-#         metric_key = {'train': ['Loss', 'MAP'], 'test': ['Loss', 'Accuracy', 'MAP']}
+#         metric_key = {'train': ['Loss', 'NDCG'], 'test': ['Loss', 'Accuracy', 'NDCG']}
 
 #     train_dataset = dataset['train']
 #     test_dataset = dataset['test']

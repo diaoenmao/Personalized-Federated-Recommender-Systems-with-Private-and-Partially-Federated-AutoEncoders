@@ -99,7 +99,7 @@ def runExperiment():
         # metric / class Metric
         # return the instance of Metric, which contains function and initial information
         #   we need for measuring the result
-        metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy', 'MAP']})
+        metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy', 'NDCG']})
     else:
         raise ValueError('Not valid target mode')
     
@@ -242,8 +242,9 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
             _time = (time.time() - start_time) / (i + 1)
             lr = optimizer.param_groups[0]['lr'] if optimizer is not None else 0
             epoch_finished_time = datetime.timedelta(seconds=round(_time * (len(data_loader) - i - 1)))
+            model_name = cfg['model_name']
             exp_finished_time = epoch_finished_time + datetime.timedelta(
-                seconds=round((cfg['client'][cfg['model_name']]['num_epochs'] - epoch) * _time * len(data_loader)))
+                seconds=round((cfg['client'][model_name]['num_epochs'] - epoch) * _time * len(data_loader)))
             info = {'info': ['Model: {}'.format(cfg['model_tag']),
                              'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
                              'Learning rate: {:.6f}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
