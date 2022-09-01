@@ -93,8 +93,8 @@ class Federation:
             if cfg['info_size'] is not None:
                 if 'user_profile' in cfg['info_size']:
                     local_model.user_profile.load_state_dict(copy.deepcopy(self.server_model.user_profile.state_dict()))
-                if 'item_attr' in cfg['info_size']:
-                    local_model.item_attr.load_state_dict(copy.deepcopy(self.server_model.item_attr.state_dict()))
+                # if 'item_attr' in cfg['info_size']:
+                #     local_model.item_attr.load_state_dict(copy.deepcopy(self.server_model.item_attr.state_dict()))
 
             self.store_local_model(i, local_model)
             self.store_local_optimizer_state_dict(i, local_optimizer.state_dict())

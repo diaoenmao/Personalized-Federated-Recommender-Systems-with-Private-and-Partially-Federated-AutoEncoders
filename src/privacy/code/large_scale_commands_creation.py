@@ -130,13 +130,13 @@ def main():
             controls.extend(douban_controls)
         if 'ML10M' in data:
             control_name = [[['ML10M'], ['user'], ['ex', 'im'], ['joint'], ['NA'], ['ae'],
-                             ['0','1'], ['iid'], ['g'], ['1'], ['0'], ['l']]]
+                             ['0'], ['iid'], ['g'], ['1'], ['0'], ['l']]]
             ml10m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml10m_controls)
         if 'ML20M' in data:
             control_name = [[['ML20M'], ['user'], ['ex', 'im'], ['joint'], ['NA'], ['ae'],
-                             ['0','1'], ['iid'], ['g'], ['1'], ['0'], ['l']]]
+                             ['0'], ['iid'], ['g'], ['1'], ['0'], ['l']]]
             ml20m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml20m_controls)
@@ -144,32 +144,32 @@ def main():
         controls = []
         script_name = [['{}_privacy_federated_all.py'.format(run)]]
         if 'ML100K' in data:
-            control_name = [[['ML100K'], ['user'], ['ex','im'], ['fedavg'], ['all','de'], ['ae'],
+            control_name = [[['ML100K'], ['user'], ['ex','im'], ['fedavg'], ['all'], ['ae'],
                              ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0'], ['l']]]
             ml100k_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml100k_controls)
         if 'ML1M' in data:
-            control_name = [[['ML1M'], ['user'], ['ex','im'], ['fedavg'], ['all','de'], ['ae'],
+            control_name = [[['ML1M'], ['user'], ['ex','im'], ['fedavg'], ['all'], ['ae'],
                              ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0'], ['l']]]
             ml1m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml1m_controls)
         if 'Douban' in data:
-            control_name = [[['Douban'], ['user'], ['ex','im'], ['fedavg'], ['all','de'], ['ae'],
+            control_name = [[['Douban'], ['user'], ['ex','im'], ['fedavg'], ['all'], ['ae'],
                              ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0'], ['l']]]
             douban_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(douban_controls)
         if 'ML10M' in data:
-            control_name = [[['ML10M'], ['user'], ['ex','im'], ['fedavg'], ['all','de'], ['ae'],
-                             ['0','1'], ['iid'], ['g'], ['100','300'], ['0'], ['l']]]
+            control_name = [[['ML10M'], ['user'], ['ex','im'], ['fedavg'], ['all'], ['ae'],
+                             ['0'], ['iid'], ['g'], ['100','300'], ['0'], ['l']]]
             ml10m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml10m_controls)
         if 'ML20M' in data:
-            control_name = [[['ML20M'], ['user'], ['ex','im'], ['fedavg'], ['all','de'], ['ae'],
-                             ['0','1'], ['iid'], ['g'], ['100','300'], ['0'], ['l']]]
+            control_name = [[['ML20M'], ['user'], ['ex','im'], ['fedavg'], ['all'], ['ae'],
+                             ['0'], ['iid'], ['g'], ['100','300'], ['0'], ['l']]]
             ml20m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml20m_controls)
@@ -179,31 +179,31 @@ def main():
         script_name = [['{}_privacy_federated_decoder.py'.format(run)]]
         if 'ML100K' in data:
             control_name = [[['ML100K'], ['user'], ['ex','im'], ['fedavg'], ['de'], ['ae'],
-                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0','1'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['1'], ['l']]]
             ml100k_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml100k_controls)
         if 'ML1M' in data:
             control_name = [[['ML1M'], ['user'], ['ex','im'], ['fedavg'], ['de'], ['ae'],
-                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0','1'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['1'], ['l']]]
             ml1m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml1m_controls)
         if 'Douban' in data:
             control_name = [[['Douban'], ['user'], ['ex','im'], ['fedavg'], ['de'], ['ae'],
-                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['0','1'], ['l']]]
+                             ['0','1'], ['iid'], ['g'], ['100','300','max'], ['1'], ['l']]]
             douban_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(douban_controls)
         if 'ML10M' in data:
             control_name = [[['ML10M'], ['user'], ['ex','im'], ['fedavg'], ['de'], ['ae'],
-                             ['0','1'], ['iid'], ['g'], ['100','300'], ['0','1'], ['l']]]
+                             ['0'], ['iid'], ['g'], ['100','300'], ['1'], ['l']]]
             ml10m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml10m_controls)
         if 'ML20M' in data:
             control_name = [[['ML20M'], ['user'], ['ex','im'], ['fedavg'], ['de'], ['ae'],
-                             ['0','1'], ['iid'], ['g'], ['100','300'], ['0','1'], ['l']]]
+                             ['0'], ['iid'], ['g'], ['100','300'], ['1'], ['l']]]
             ml20m_controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, log_interval,
                                             device, control_name)
             controls.extend(ml20m_controls)
@@ -216,15 +216,16 @@ def main():
 
     s_for_max = '#!/bin/bash\n'
     k_for_max = 0
+    k_round = 4
     
     for i in range(len(controls)):
         controls[i] = list(controls[i])
 
         if 'max' in controls[i][-1]:
             s_for_max = s_for_max + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --init_seed {} --world_size {} --num_experiments {} ' \
-                '--resume_mode {} --log_interval {} --device {} --control_name {}&\n'.format(gpu_ids[k % len(gpu_ids)], *controls[i])
+                '--resume_mode {} --log_interval {} --device {} --control_name {}&\n'.format(gpu_ids[k_for_max % len(gpu_ids)], *controls[i])
 
-            if k_for_max % round == round - 1:
+            if k_for_max % k_round == k_round - 1:
                 s_for_max = s_for_max[:-2] + '\nwait\n'
             k_for_max = k_for_max + 1
             continue
@@ -245,8 +246,19 @@ def main():
     run_file.write(s)
     run_file.close()
 
-    run_file = open('./{}.sh'.format('large_scale_one_user_per_node_commands'), 'a')
+    # run_file = open('./{}.sh'.format('large_scale_one_user_per_node_commands'), 'a')
+    # run_file.write(s_for_max)
+    # run_file.close()
+    run_file = open('./{}.sh'.format('large_scale_' + filename), 'a')
     run_file.write(s_for_max)
+    run_file.close()
+
+    run_file = open('./{}.sh'.format('large_scale_train_server_4'), 'a')
+    run_file.write('')
+    run_file.close()
+
+    run_file = open('./{}.sh'.format('large_scale_test_server_4'), 'a')
+    run_file.write('')
     run_file.close()
     return
 

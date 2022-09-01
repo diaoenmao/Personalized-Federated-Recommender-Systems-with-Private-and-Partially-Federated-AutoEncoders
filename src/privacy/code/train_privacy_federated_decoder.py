@@ -274,9 +274,9 @@ def train(
         if m % int((len(node_idx) * cfg['log_interval']) + 1) == 0:
             local_time = (time.time() - start_time) / (m + 1)
             epoch_finished_time = datetime.timedelta(seconds=local_time * (len(node_idx) - m - 1))
-            # exp_finished_time = epoch_finished_time + datetime.timedelta(
-            #     seconds=round((cfg['num_epochs']['global'] - epoch) * local_time * num_active_nodes))
-            exp_finished_time = 1
+            exp_finished_time = epoch_finished_time + datetime.timedelta(
+                seconds=round((cfg['num_epochs']['global'] - epoch) * local_time * num_active_nodes))
+            # exp_finished_time = 1
             info = {'info': ['Model: {}'.format(cfg['model_tag']), 
                              'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * m / len(node_idx)),
                              'ID: {}({}/{})'.format(node_idx[m], m + 1, len(node_idx)),

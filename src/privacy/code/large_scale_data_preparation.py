@@ -6,7 +6,7 @@ from config import cfg
 # 
 # file_list = [ML100K.file, ML1M.file, ML10M.file, ML20M.file]
 
-dataset_list = ['ML100K', 'ML1M', 'ML10M', 'ML20M']
+dataset_list = ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'Douban']
 from utils import process_control
 from data import fetch_dataset
 

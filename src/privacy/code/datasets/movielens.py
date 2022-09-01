@@ -34,8 +34,9 @@ class ML100K(Dataset):
         # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         # self.item_attr = {'data': item_attr, 'target': item_attr}
         # self.user_profile = {}
-        self.item_attr = {}
-
+        # self.item_attr = {}
+        # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
+        # self.item_attr = {'data': item_attr, 'target': item_attr}
         # self.data = self.data[:100]
         # self.target = self.target[:100]
 
@@ -84,10 +85,10 @@ class ML100K(Dataset):
                 input['user_profile'] = torch.tensor(self.user_profile['data'][index])
             if 'target' in self.user_profile:
                 input['target_user_profile'] = torch.tensor(self.user_profile['target'][index])
-            if 'data' in self.item_attr:
-                input['item_attr'] = torch.tensor(self.item_attr['data'][data.col])
-            if 'target' in self.item_attr:
-                input['target_item_attr'] = torch.tensor(self.item_attr['target'][target.col])
+            # if 'data' in self.item_attr:
+            #     input['item_attr'] = torch.tensor(self.item_attr['data'][data.col])
+            # if 'target' in self.item_attr:
+            #     input['target_item_attr'] = torch.tensor(self.item_attr['target'][target.col])
         # elif self.data_mode == 'item':
         #     input = {'user': torch.tensor(data.col, dtype=torch.long),
         #              'item': torch.tensor(np.array([index]), dtype=torch.long),
@@ -305,7 +306,7 @@ class ML1M(Dataset):
         # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         # self.item_attr = {'data': item_attr, 'target': item_attr}
         # self.user_profile = {}
-        self.item_attr = {}
+        # self.item_attr = {}
 
     def __getitem__(self, index):
         data = self.data[index].tocoo()
@@ -321,10 +322,10 @@ class ML1M(Dataset):
                 input['user_profile'] = torch.tensor(self.user_profile['data'][index])
             if 'target' in self.user_profile:
                 input['target_user_profile'] = torch.tensor(self.user_profile['target'][index])
-            if 'data' in self.item_attr:
-                input['item_attr'] = torch.tensor(self.item_attr['data'][data.col])
-            if 'target' in self.item_attr:
-                input['target_item_attr'] = torch.tensor(self.item_attr['target'][target.col])
+            # if 'data' in self.item_attr:
+            #     input['item_attr'] = torch.tensor(self.item_attr['data'][data.col])
+            # if 'target' in self.item_attr:
+            #     input['target_item_attr'] = torch.tensor(self.item_attr['target'][target.col])
         elif self.data_mode == 'item':
             input = {'user': torch.tensor(data.col, dtype=torch.long),
                      'item': torch.tensor(np.array([index]), dtype=torch.long),
@@ -394,7 +395,7 @@ class ML1M(Dataset):
         save(test_set, os.path.join(self.processed_folder, 'implicit', 'test.pt'), mode='pickle')
         user_profile, item_attr = self.make_info()
         save(user_profile, os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
-        # save(item_attr, os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
+        save(item_attr, os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         return
 
     def download(self):
@@ -512,8 +513,9 @@ class ML10M(Dataset):
                                    shape=(self.target.shape[1], self.target.shape[0]))
         else:
             raise ValueError('Not valid data mode')
-        item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
-        self.item_attr = {'data': item_attr, 'target': item_attr}
+        # self.item_attr = {}
+        # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
+        # self.item_attr = {'data': item_attr, 'target': item_attr}
 
     def __getitem__(self, index):
         data = self.data[index].tocoo()
@@ -525,10 +527,10 @@ class ML10M(Dataset):
                      'target_user': torch.tensor(np.array([index]), dtype=torch.long),
                      'target_item': torch.tensor(target.col, dtype=torch.long),
                      'target_rating': torch.tensor(target.data)}
-            if 'data' in self.item_attr:
-                input['item_attr'] = torch.tensor(self.item_attr['data'][data.col])
-            if 'target' in self.item_attr:
-                input['target_item_attr'] = torch.tensor(self.item_attr['target'][target.col])
+            # if 'data' in self.item_attr:
+            #     input['item_attr'] = torch.tensor(self.item_attr['data'][data.col])
+            # if 'target' in self.item_attr:
+            #     input['target_item_attr'] = torch.tensor(self.item_attr['target'][target.col])
         elif self.data_mode == 'item':
             input = {'user': torch.tensor(data.col, dtype=torch.long),
                      'item': torch.tensor(np.array([index]), dtype=torch.long),
@@ -699,8 +701,9 @@ class ML20M(Dataset):
                                    shape=(self.target.shape[1], self.target.shape[0]))
         else:
             raise ValueError('Not valid data mode')
-        item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
-        self.item_attr = {'data': item_attr, 'target': item_attr}
+        # self.item_attr = {}
+        # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
+        # self.item_attr = {'data': item_attr, 'target': item_attr}
 
     def __getitem__(self, index):
         data = self.data[index].tocoo()
@@ -712,10 +715,10 @@ class ML20M(Dataset):
                      'target_user': torch.tensor(np.array([index]), dtype=torch.long),
                      'target_item': torch.tensor(target.col, dtype=torch.long),
                      'target_rating': torch.tensor(target.data)}
-            if 'data' in self.item_attr:
-                input['item_attr'] = torch.tensor(self.item_attr['data'][data.col])
-            if 'target' in self.item_attr:
-                input['target_item_attr'] = torch.tensor(self.item_attr['target'][target.col])
+            # if 'data' in self.item_attr:
+            #     input['item_attr'] = torch.tensor(self.item_attr['data'][data.col])
+            # if 'target' in self.item_attr:
+            #     input['target_item_attr'] = torch.tensor(self.item_attr['target'][target.col])
         elif self.data_mode == 'item':
             input = {'user': torch.tensor(data.col, dtype=torch.long),
                      'item': torch.tensor(np.array([index]), dtype=torch.long),

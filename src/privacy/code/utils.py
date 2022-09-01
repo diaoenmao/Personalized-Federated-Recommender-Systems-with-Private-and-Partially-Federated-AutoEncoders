@@ -1,3 +1,4 @@
+from ast import Pass
 import collections.abc as container_abcs
 import collections
 import errno
@@ -195,7 +196,7 @@ def process_dataset(dataset):
         if hasattr(dataset['train'], 'user_profile'):
             cfg['info_size']['user_profile'] = dataset['train'].user_profile['data'].shape[1]
         # if hasattr(dataset['train'], 'item_attr'):
-            # cfg['info_size']['item_attr'] = dataset['train'].item_attr['data'].shape[1]
+        #     cfg['info_size']['item_attr'] = dataset['train'].item_attr['data'].shape[1]
     else:
         cfg['info_size'] = None
     return
@@ -285,49 +286,150 @@ def process_control():
 
     # cfg['client'][model_name]['shuffle'] = {'train': True, 'test': True}
     cfg['client'][model_name]['shuffle'] = {'train': False, 'test': False}
-    if cfg['train_mode'] == 'fedavg':
-        if cfg['num_nodes'] == 1:
-            # simulate joint situation
+    if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M']:
+        if cfg['train_mode'] == 'fedavg':
+            if cfg['num_nodes'] == 1:
+                # simulate joint situation
+                cfg['client'][model_name]['fraction'] = 1
+                cfg['client'][model_name]['local_epoch'] = 1
+                cfg['client'][model_name]['optimizer_name'] = 'Adam'
+                cfg['client'][model_name]['lr'] = 1e-3
+                cfg['client'][model_name]['scheduler_name'] = 'None'
+            else:
+                batch_size = {'user': {
+                                'ML100K': 5, 
+                                'ML1M': 10, 
+                                'ML10M': 10, 
+                                'ML20M': 10, 
+                                'Douban': 10,
+                                'taobaoclicksmall': 10,
+                                'taobaoclickmedium': 10,
+                                'taobaoclicklarge': 10,},
+                            'item': {
+                                'ML100K': 5, 
+                                'ML1M': 10, 
+                                'ML10M': 10, 
+                                'ML20M': 10, 
+                                'Douban': 10,
+                                'taobaoclicksmall': 10,
+                                'taobaoclickmedium': 10,
+                                'taobaoclicklarge': 10}}
+                cfg['client'][model_name]['fraction'] = 0.1
+                cfg['client'][model_name]['local_epoch'] = local_epoch
+                cfg['client'][model_name]['optimizer_name'] = 'SGD'
+                cfg['client'][model_name]['lr'] = 0.1
+                cfg['client'][model_name]['scheduler_name'] = 'CosineAnnealingLR'
+        elif cfg['train_mode'] == 'joint':
             cfg['client'][model_name]['fraction'] = 1
-            cfg['client'][model_name]['local_epoch'] = 1
             cfg['client'][model_name]['optimizer_name'] = 'Adam'
             cfg['client'][model_name]['lr'] = 1e-3
             cfg['client'][model_name]['scheduler_name'] = 'None'
-        else:
-            batch_size = {'user': {
-                            'ML100K': 5, 
-                            'ML1M': 10, 
-                            'ML10M': 10, 
-                            'ML20M': 10, 
-                            'Douban': 10,
-                            'taobaoclicksmall': 10,
-                            'taobaoclickmedium': 10,
-                            'taobaoclicklarge': 10,},
-                        'item': {
-                            'ML100K': 5, 
-                            'ML1M': 10, 
-                            'ML10M': 10, 
-                            'ML20M': 10, 
-                            'Douban': 10,
-                            'taobaoclicksmall': 10,
-                            'taobaoclickmedium': 10,
-                            'taobaoclicklarge': 10}}
-            cfg['client'][model_name]['fraction'] = 0.1
-            cfg['client'][model_name]['local_epoch'] = local_epoch
+        # elif cfg['train_mode'] == 'fedsgd':
+        #     cfg['client'][model_name]['fraction'] = 0.1
+        #     cfg['client'][model_name]['local_epoch'] = local_epoch
+        #     cfg['client'][model_name]['optimizer_name'] = 'SGD'
+        #     cfg['client'][model_name]['lr'] = 0.1
+        #     cfg['client'][model_name]['scheduler_name'] = 'CosineAnnealingLR'
+    elif cfg['data_name'] == 'Douban':
+        # print(f'##cfg:{cfg}')
+        if 'lr' in cfg['control']:
+            cfg['douban_lr'] = float(cfg['control']['lr'])
+        if 'milestones' in cfg['control']:
+            cfg['douban_milestones'] = [int(_) for _ in cfg['control']['milestones'].split('-')]
+        if 'factor' in cfg['control']:
+            cfg['douban_factor'] = float(cfg['control']['factor'])
+
+
+        if cfg['train_mode'] == 'fedavg':
+            if cfg['num_nodes'] == 1:
+                pass
+            #     # simulate joint situation
+            #     cfg['client'][model_name]['fraction'] = 1
+            #     cfg['client'][model_name]['local_epoch'] = 1
+            #     batch_size = {
+            #         'user': {
+            #             'Douban': 10,
+            #         },
+            #     }
+
+            #     cfg['client'][model_name]['optimizer_name'] = 'SGD'
+            #     cfg['client'][model_name]['lr'] = 0.01
+            #     cfg['client'][model_name]['scheduler_name'] = 'CosineAnnealingLR'
+
+                # cfg['client'][model_name]['optimizer_name'] = 'Adam'
+                # cfg['client'][model_name]['lr'] = 1e-5
+                # cfg['client'][model_name]['scheduler_name'] = 'None'
+            else:
+                batch_size = {
+                    'user': {
+                        'ML100K': 5, 
+                        'ML1M': 10, 
+                        'ML10M': 10, 
+                        'ML20M': 10, 
+                        'Douban': 10,
+                        'taobaoclicksmall': 10,
+                        'taobaoclickmedium': 10,
+                        'taobaoclicklarge': 10
+                    },
+                    'item': {
+                        'ML100K': 5, 
+                        'ML1M': 10, 
+                        'ML10M': 10, 
+                        'ML20M': 10, 
+                        'Douban': 10,
+                        'taobaoclicksmall': 10,
+                        'taobaoclickmedium': 10,
+                        'taobaoclicklarge': 10
+                    }
+                }
+                cfg['client'][model_name]['fraction'] = 0.1
+                cfg['client'][model_name]['local_epoch'] = local_epoch
+                cfg['client'][model_name]['optimizer_name'] = 'SGD'
+                # cfg['client'][model_name]['lr'] = cfg['douban_lr']
+                cfg['client'][model_name]['lr'] = 0.05
+                # cfg['client'][model_name]['scheduler_name'] = 'CosineAnnealingLR'
+                cfg['client'][model_name]['scheduler_name'] = 'MultiStepLR'
+                cfg['client'][model_name]['factor'] = 0.1
+
+                if cfg['num_nodes'] == 100:
+                    cfg['client'][model_name]['milestones'] = [50,100,200]
+                elif cfg['num_nodes'] == 300:
+                    cfg['client'][model_name]['milestones'] = [100,200,400]
+                elif cfg['num_nodes'] == 9999999:
+                    cfg['client'][model_name]['milestones'] = [200,400,600]
+
+                # cfg['client'][model_name]['milestones'] = cfg['douban_milestones']
+                
+        elif cfg['train_mode'] == 'joint':
+            cfg['client'][model_name]['fraction'] = 1
+            # cfg['client'][model_name]['optimizer_name'] = 'Adam'
+            # cfg['client'][model_name]['lr'] = 1e-5
+            # cfg['client'][model_name]['scheduler_name'] = 'None'
+
             cfg['client'][model_name]['optimizer_name'] = 'SGD'
-            cfg['client'][model_name]['lr'] = 0.1
-            cfg['client'][model_name]['scheduler_name'] = 'CosineAnnealingLR'
-    elif cfg['train_mode'] == 'joint':
-        cfg['client'][model_name]['fraction'] = 1
-        cfg['client'][model_name]['optimizer_name'] = 'Adam'
-        cfg['client'][model_name]['lr'] = 1e-3
-        cfg['client'][model_name]['scheduler_name'] = 'None'
-    elif cfg['train_mode'] == 'fedsgd':
-        cfg['client'][model_name]['fraction'] = 0.1
-        cfg['client'][model_name]['local_epoch'] = local_epoch
-        cfg['client'][model_name]['optimizer_name'] = 'SGD'
-        cfg['client'][model_name]['lr'] = 0.1
-        cfg['client'][model_name]['scheduler_name'] = 'CosineAnnealingLR'
+            cfg['client'][model_name]['lr'] = 0.05
+            # cfg['client'][model_name]['lr'] = 0.03
+            # cfg['client'][model_name]['scheduler_name'] = 'CosineAnnealingLR'
+            cfg['client'][model_name]['scheduler_name'] = 'MultiStepLR'
+            
+            cfg['client'][model_name]['factor'] = 0.1
+
+
+            cfg['client'][model_name]['milestones'] = [30,100,200]
+            # cfg['client'][model_name]['milestones'] = cfg['douban_milestones']
+            # batch_size = {
+            #     'user': {
+            #         'Douban': 100,
+            #     },
+            # }
+
+            # cfg['client'][model_name]['optimizer_name'] = 'SGD'
+            # cfg['client'][model_name]['lr'] = 0.05
+            # cfg['client'][model_name]['scheduler_name'] = 'MultiStepLR'
+            # cfg['client'][model_name]['milestones'] = [20, 100]
+            # cfg['client'][model_name]['factor'] = 0.1
+            # cfg['client'][model_name]['scheduler_name'] = 'CosineAnnealingLR'
+
 
     cfg['client'][model_name]['momentum'] = 0.9
     cfg['client'][model_name]['nesterov'] = True

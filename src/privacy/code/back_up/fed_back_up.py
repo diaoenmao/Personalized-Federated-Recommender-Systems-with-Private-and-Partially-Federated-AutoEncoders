@@ -79,8 +79,8 @@ class Federation:
             if cfg['info_size'] is not None:
                 if 'user_profile' in cfg['info_size']:
                     local_model.user_profile.load_state_dict(copy.deepcopy(self.global_model.user_profile.state_dict()))
-                if 'item_attr' in cfg['info_size']:
-                    local_model.item_attr.load_state_dict(copy.deepcopy(self.global_model.item_attr.state_dict()))
+                # if 'item_attr' in cfg['info_size']:
+                #     local_model.item_attr.load_state_dict(copy.deepcopy(self.global_model.item_attr.state_dict()))
 
             self.local_model_dict[i]['model'] = local_model
             self.local_test_model_dict[i]['model'] = test_model

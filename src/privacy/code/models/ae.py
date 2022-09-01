@@ -243,12 +243,12 @@ class AE(nn.Module):
                 user_profile = self.user_profile(user_profile)
                 # add result from self.user_profile (Encoder) to basic encoder result
                 encoded = encoded + user_profile
-            if 'item_attr' in input:
-                # Use input['item_attr'] as input and pass it to self.item_attr (Encoder)
-                item_attr = input['item_attr']
-                item_attr = self.item_attr(item_attr)
-                # add result from self.item_attr (Encoder) to basic encoder result
-                encoded = encoded + item_attr
+            # if 'item_attr' in input:
+            #     # Use input['item_attr'] as input and pass it to self.item_attr (Encoder)
+            #     item_attr = input['item_attr']
+            #     item_attr = self.item_attr(item_attr)
+            #     # add result from self.item_attr (Encoder) to basic encoder result
+            #     encoded = encoded + item_attr
         
         # dropout the encoder result
         code = self.dropout(encoded)

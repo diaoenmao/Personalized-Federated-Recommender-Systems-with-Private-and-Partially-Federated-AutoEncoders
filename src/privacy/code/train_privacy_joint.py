@@ -88,6 +88,8 @@ def runExperiment():
     else:
         optimizer = None
         scheduler = None
+    
+    print(f'optimizer scheduler: {optimizer}, {scheduler}')
     if cfg['target_mode'] == 'explicit':
         # metric / class Metric
         # return the instance of Metric, which contains function and initial information
@@ -123,7 +125,7 @@ def runExperiment():
 
     # Train and Test the model for cfg['client'][cfg['model_name']]['num_epochs'] rounds
     for epoch in range(last_epoch, cfg['client'][cfg['model_name']]['num_epochs'] + 1):
-        print(f"--epoch: {epoch}, global_optimizer_lr: {optimizer.state_dict()['param_groups'][0]['lr']}")
+        # print(f"--epoch: {epoch}, global_optimizer_lr: {optimizer.state_dict()['param_groups'][0]['lr']}")
         # print(f"!!!!joint_split: {data_split['train'][0]}")
         data_loader_train = make_data_loader(
             dataset={'train': SplitDataset(dataset['train'], data_split['train'][0])}, 
@@ -197,7 +199,7 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
     model.train(True)
     start_time = time.time()
     # Iterate data_loader
-    print('zheli')
+    # print('zheli')
     # print(f"model.state_dict", model.state_dict())
     for i, input in enumerate(data_loader):
         # utils.py / collate(input)

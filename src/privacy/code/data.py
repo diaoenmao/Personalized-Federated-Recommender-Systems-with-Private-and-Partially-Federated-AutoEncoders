@@ -48,9 +48,9 @@ def iid(dataset, num_nodes):
 
     # data_split_info[0]['num_items'].sort()
     
-    # for i in range(len(idx)): 
-    #     data_split[i].append(idx[i])
-    #     data_split_info[i]['num_users'] += 1
+    for i in range(len(idx)): 
+        data_split[i].append(idx[i])
+        data_split_info[i]['num_users'] += 1
     # print(data_split_info)
     # print('gff', data_split_info[0])
     # print('wudi', data_split_info)

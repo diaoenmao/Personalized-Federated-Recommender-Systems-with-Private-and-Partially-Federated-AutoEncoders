@@ -133,7 +133,7 @@ def runExperiment():
         logger.safe(True)
         
         global_optimizer_lr = global_optimizer.state_dict()['param_groups'][0]['lr']
-        print(f'--epoch: {epoch}, global_optimizer_lr: {global_optimizer_lr}')
+        # print(f'--epoch: {epoch}, global_optimizer_lr: {global_optimizer_lr}')
         node_idx = train(
             dataset['train'], 
             data_split['train'], 
@@ -242,9 +242,9 @@ def train(
         if m % int((num_active_nodes * cfg['log_interval']) + 1) == 0:
             local_time = (time.time() - start_time) / (m + 1)
             epoch_finished_time = datetime.timedelta(seconds=local_time * (num_active_nodes - m - 1))
-            # exp_finished_time = epoch_finished_time + datetime.timedelta(
-            #     seconds=round((cfg['num_epochs']['global'] - epoch) * local_time * num_active_nodes))
-            exp_finished_time = 1
+            exp_finished_time = epoch_finished_time + datetime.timedelta(
+                seconds=round((cfg['num_epochs']['global'] - epoch) * local_time * num_active_nodes))
+            # exp_finished_time = 1
             info = {'info': ['Model: {}'.format(cfg['model_tag']), 
                              'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * m / num_active_nodes),
                              'ID: {}({}/{})'.format(node_idx[m], m + 1, num_active_nodes),
@@ -268,8 +268,9 @@ def test(
     with torch.no_grad():
         cur_num_users = data_split_info[0]['num_users']
         cur_num_items = data_split_info[0]['num_items']
-        model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
-            'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items).to(cfg["device"])'.format(cfg['model_name']))
+        # model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
+        #     'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items).to(cfg["device"])'.format(cfg['model_name']))
+        model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
         model = federation.update_client_parameters_with_server_model_parameters(model)
         model.to(cfg['device'])
         model.train(False)
@@ -334,8 +335,8 @@ def make_local(dataset, data_split, data_split_info, federation, metric):
             batch_size
         )['train']
 
-        cur_num_users = data_split_info[cur_node_index]['num_users']
-        cur_num_items = data_split_info[cur_node_index]['num_items']
+        # cur_num_users = data_split_info[cur_node_index]['num_users']
+        # cur_num_items = data_split_info[cur_node_index]['num_items']
  
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
         # print('66666666666model', model)
@@ -407,7 +408,7 @@ class Local:
             model.to('cpu')
             optimizer_state_dict = to_device(optimizer_state_dict, 'cpu')
 
-        federation.store_local_model(cur_node_index, model)
+        # federation.store_local_model(cur_node_index, model)
         federation.store_local_optimizer_state_dict(cur_node_index, copy.deepcopy(optimizer_state_dict))
         
         local_parameters = model.state_dict()
