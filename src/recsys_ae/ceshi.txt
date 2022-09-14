@@ -1,3 +1,0 @@
-first log_interval
-second
-third

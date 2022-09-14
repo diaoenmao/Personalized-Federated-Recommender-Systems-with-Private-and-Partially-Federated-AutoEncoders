@@ -1,0 +1,32 @@
+---
+# control
+control:
+  data_name: taobaoclicksmall
+  data_mode: user
+  target_mode: ex
+  train_mode: fedavg
+  federated_mode: de
+  model_name: ae
+  info: 1
+  data_split_mode: 'iid'
+  update_best_model: 'g'
+  num_nodes: 100
+  compress_transmission: 1
+  experiment_size: 'l'
+  # milestones: '100-300'
+  
+# experiment
+# fine_tune: 0
+# fine_tune_lr: 0.1
+# fine_tune_batch_size: 5
+# fine_tune_epoch: 5
+# fix_layers: last
+# fine_tune_scheduler: CosineAnnealingLR
+num_workers: 0
+init_seed: 0
+num_experiments: 1
+log_interval: 0.25
+device: cpu
+resume_mode: 0
+world_size: 1
+verbose: False
