@@ -10,15 +10,11 @@ This is an implementation of Personalized Federated Recommender Systems with Pri
 
 ### Requirements
 
--------
-
 - see requirements.txt
 
 
 
 ### Instruction
-
------
 
 - Global hyperparameters are configured in config.yml
 - Hyperparameters can be found at process_control() in utils.py
@@ -27,8 +23,6 @@ This is an implementation of Personalized Federated Recommender Systems with Pri
 
 
 ### Examples
-
------
 
 - Train ML1M dataset (IID) with AE model, Joint, 1 client, explicit feedback, Compress Transmission(False)
 
@@ -54,11 +48,7 @@ This is an implementation of Personalized Federated Recommender Systems with Pri
 
 ### Results
 
-------
-
 ![table1](/asset/table1.png)
-
-
 
 ![table2](/asset/table2.png)
 
@@ -66,15 +56,11 @@ This is an implementation of Personalized Federated Recommender Systems with Pri
 
 ![figure2](/asset/figure2.png)
 
-
-
 ![figure3](/asset/figure3.png)
 
 
 
 ### Acknowledgement
-
------
 
 *Qi Le*
 
