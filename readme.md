@@ -4,7 +4,7 @@
 
 This is an implementation of Personalized Federated Recommender Systems with Private and Partially Federated AutoEncoders
 
-![image-20220921204258697](/Users/qile/Library/Application Support/typora-user-images/image-20220921204258697.png)
+![PersonalFR](/asset/PersonalFR.png)
 
 
 
@@ -56,19 +56,19 @@ This is an implementation of Personalized Federated Recommender Systems with Pri
 
 ------
 
-![image-20220925183102709](/Users/qile/Library/Application Support/typora-user-images/image-20220925183102709.png)
-
-![image-20220925183123591](/Users/qile/Library/Application Support/typora-user-images/image-20220925183123591.png)
-
-![image-20220921205314472](/Users/qile/Library/Application Support/typora-user-images/image-20220921205314472.png)
+![table1](/asset/table1.png)
 
 
 
-![image-20220921205338411](/Users/qile/Library/Application Support/typora-user-images/image-20220921205338411.png)
+![table2](/asset/table2.png)
+
+![figure1](/asset/figure1.png)
+
+![figure2](/asset/figure2.png)
 
 
 
-![image-20220921205423416](/Users/qile/Library/Application Support/typora-user-images/image-20220921205423416.png)
+![figure3](/asset/figure3.png)
 
 
 
