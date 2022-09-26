@@ -13,28 +13,21 @@ from utils import collate, to_device
 
 def split_dataset(dataset, num_nodes, data_split_mode):
     data_split = {}
-    if data_split_mode == 'iid':
-      
+    if data_split_mode == 'iid':   
         data_split['train'], data_split_info = iid(dataset['train'], num_nodes)
         data_split['test'], _ = iid(dataset['test'], num_nodes)
-
-        # print(f'----data_split: {data_split}')
-    # elif 'non-iid' in cfg['data_split_mode']:
-    #     data_split['train'], label_split = non_iid(dataset['train'], num_users)
-    #     data_split['test'], _ = non_iid(dataset['test'], num_users, label_split)
     else:
         raise ValueError('Not valid data split mode')
-    # print(data_split['test'])
     return data_split, data_split_info
 
 
 def iid(dataset, num_nodes):
-    if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'Douban', 'Amazon', 'Anime', 'Netflix']:
+    if cfg['data_name'] in ['ML1M', 'Anime']:
         pass
     else:
         raise ValueError('Not valid data name')
     
-    print(f"iid: {cfg['num_users']['data']}, {num_nodes}")
+    # print(f"iid: {cfg['num_users']['data']}, {num_nodes}")
     user_per_node = int(cfg['num_users']['data'] / num_nodes)
     data_split, idx = {}, list(range(cfg['num_users']['data']))
     data_split_info = collections.defaultdict(dict)
@@ -45,52 +38,46 @@ def iid(dataset, num_nodes):
         data_split_info[i]['num_users'] = user_per_node_i
         data_split_info[i]['num_items'] = cfg['num_items']['data']
         idx = list(set(idx) - set(data_split[i]))
-
-    # data_split_info[0]['num_items'].sort()
     
     for i in range(len(idx)): 
         data_split[i].append(idx[i])
         data_split_info[i]['num_users'] += 1
-    # print(data_split_info)
-    # print('gff', data_split_info[0])
-    # print('wudi', data_split_info)
-    # data_split[0].sort()
-    # print(f'data_split_sort', data_split[0])
+
     return data_split, data_split_info
 
 
-# def non_iid(dataset, num_users, label_split=None):
-#     label = np.array(dataset.target)
-#     cfg['non-iid-n'] = int(cfg['data_split_mode'].split('-')[-1])
-#     shard_per_user = cfg['non-iid-n']
-#     data_split = {i: [] for i in range(num_users)}
+def non_iid(dataset, num_users, label_split=None):
+    label = np.array(dataset.target)
+    cfg['non-iid-n'] = int(cfg['data_split_mode'].split('-')[-1])
+    shard_per_user = cfg['non-iid-n']
+    data_split = {i: [] for i in range(num_users)}
 
-#     label_idx_split = collections.defaultdict(list)
-#     for i in range(len(label)):
-#         label_i = label[i].item()
-#         label_idx_split[label_i].append(i)
+    label_idx_split = collections.defaultdict(list)
+    for i in range(len(label)):
+        label_i = label[i].item()
+        label_idx_split[label_i].append(i)
 
-#     shard_per_class = int(shard_per_user * num_users / cfg['classes_size'])
-#     for label_i in label_idx_split:
-#         label_idx = label_idx_split[label_i]
-#         num_leftover = len(label_idx) % shard_per_class
-#         leftover = label_idx[-num_leftover:] if num_leftover > 0 else []
-#         new_label_idx = np.array(label_idx[:-num_leftover]) if num_leftover > 0 else np.array(label_idx)
-#         new_label_idx = new_label_idx.reshape((shard_per_class, -1)).tolist()
-#         for i, leftover_label_idx in enumerate(leftover):
-#             new_label_idx[i] = np.concatenate([new_label_idx[i], [leftover_label_idx]])
-#         label_idx_split[label_i] = new_label_idx
-#     if label_split is None:
-#         label_split = list(range(cfg['classes_size'])) * shard_per_class
-#         label_split = torch.tensor(label_split)[torch.randperm(len(label_split))].tolist()
-#         label_split = np.array(label_split).reshape((num_users, -1)).tolist()
-#         for i in range(len(label_split)):
-#             label_split[i] = np.unique(label_split[i]).tolist()
-#     for i in range(num_users):
-#         for label_i in label_split[i]:
-#             idx = torch.arange(len(label_idx_split[label_i]))[torch.randperm(len(label_idx_split[label_i]))[0]].item()
-#             data_split[i].extend(label_idx_split[label_i].pop(idx))
-#     return data_split, label_split
+    shard_per_class = int(shard_per_user * num_users / cfg['classes_size'])
+    for label_i in label_idx_split:
+        label_idx = label_idx_split[label_i]
+        num_leftover = len(label_idx) % shard_per_class
+        leftover = label_idx[-num_leftover:] if num_leftover > 0 else []
+        new_label_idx = np.array(label_idx[:-num_leftover]) if num_leftover > 0 else np.array(label_idx)
+        new_label_idx = new_label_idx.reshape((shard_per_class, -1)).tolist()
+        for i, leftover_label_idx in enumerate(leftover):
+            new_label_idx[i] = np.concatenate([new_label_idx[i], [leftover_label_idx]])
+        label_idx_split[label_i] = new_label_idx
+    if label_split is None:
+        label_split = list(range(cfg['classes_size'])) * shard_per_class
+        label_split = torch.tensor(label_split)[torch.randperm(len(label_split))].tolist()
+        label_split = np.array(label_split).reshape((num_users, -1)).tolist()
+        for i in range(len(label_split)):
+            label_split[i] = np.unique(label_split[i]).tolist()
+    for i in range(num_users):
+        for label_i in label_split[i]:
+            idx = torch.arange(len(label_idx_split[label_i]))[torch.randperm(len(label_idx_split[label_i]))[0]].item()
+            data_split[i].extend(label_idx_split[label_i].pop(idx))
+    return data_split, label_split
 
 
 class SplitDataset(Dataset):
@@ -103,8 +90,6 @@ class SplitDataset(Dataset):
         return len(self.idx)
 
     def __getitem__(self, index):
-        # print('gett', self.idx[index])
-        # print('?/', self.dataset[490])
         input = self.dataset[self.idx[index]]
         return input
 
@@ -128,7 +113,6 @@ class BatchDataset(Dataset):
 
 def fetch_dataset(data_name, model_name=None, verbose=True):
     import datasets
-
     """
     1. Initialize the dataset class
     2. add transform attribute to the dataset class instance
@@ -144,7 +128,6 @@ def fetch_dataset(data_name, model_name=None, verbose=True):
     Raises:
         None
     """
-
     model_name = cfg['model_name'] if model_name is None else model_name
     dataset = {}
     if verbose:
@@ -152,47 +135,13 @@ def fetch_dataset(data_name, model_name=None, verbose=True):
     
     root = os.path.join('data', '{}'.format(data_name))
     # root = './data/{}'.format(data_name)
-    if data_name in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'Douban', 'Amazon', 'Anime', 'Netflix']:
-        if data_name in ['taobaoclicksmall', 'taobaoclickmedium', 'taobaoclicklarge']:
-            root = os.path.join('data', 'taobaoclick')
-        # initialize the corresponding class of data_name in datasets / movielens.py
-        # put the corresponding class instance in dataset['train']
-        # put the corresponding class instance in dataset['test']
-        # if data_name == 'taobaoclicksmall':
-        #     dataset['train'] = eval(
-        #         'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
-        #         'target_mode=cfg["target_mode"])'.format(data_name))
-        #     dataset['test'] = eval(
-        #         'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
-        #         'target_mode=cfg["target_mode"], )'.format(data_name))
-        # elif data_name == 'taobaoclickmedium':
-        #     dataset['train'] = eval(
-        #         'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
-        #         'target_mode=cfg["target_mode"])'.format(data_name))
-        #     dataset['test'] = eval(
-        #         'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
-        #         'target_mode=cfg["target_mode"])'.format(data_name))
-        # elif data_name == 'taobaoclicklarge':
-        #     dataset['train'] = eval(
-        #         'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
-        #         'target_mode=cfg["target_mode"])'.format(data_name))
-        #     dataset['test'] = eval(
-        #         'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
-        #         'target_mode=cfg["target_mode"])'.format(data_name))
-        # else:
-        # print('%%%%%%%%%%', cfg, data_name)
-        # print(cfg['target_mode'])
+    if data_name in ['ML1M', 'Anime']:
         dataset['train'] = eval(
             'datasets.{}(root=root, split=\'train\', data_mode=cfg["data_mode"], '
             'target_mode=cfg["target_mode"])'.format(data_name))
         dataset['test'] = eval(
             'datasets.{}(root=root, split=\'test\', data_mode=cfg["data_mode"], '
             'target_mode=cfg["target_mode"])'.format(data_name))
-        
-        # for index in range(cfg['unique_user_num']):
-        #     if index in cfg['test_user_unique']:  
-        #         print('train', dataset['train'][index]['target_rating'])
-        #         print('test', dataset['test'][index]['target_rating'])
 
         if model_name in ['base', 'mf', 'gmf', 'mlp', 'nmf']:
             # add transform attribute to corresponding class instance
@@ -230,7 +179,6 @@ def make_flat_transform(dataset):
 
 
 def input_collate(batch):
-
     """
     Define a batch data handler.
 
@@ -243,13 +191,7 @@ def input_collate(batch):
     Raises:
         None
     """
-
     if isinstance(batch[0], dict):
-        
-        # res = collections.defaultdict(list)
-        # for key in batch[0]:
-        #     for item in batch:
-        #         res[key].append(item[key])
 
         res = {key: [b[key] for b in batch] for key in batch[0]}
         return res
@@ -259,7 +201,6 @@ def input_collate(batch):
 
 
 def make_data_loader(dataset, batch_size=None, shuffle=None, sampler=None):
-
     """
     generate DataLoader instance(iterable) based on default parameters setting and passing parameters
 
@@ -275,18 +216,13 @@ def make_data_loader(dataset, batch_size=None, shuffle=None, sampler=None):
     Raises:
         None
     """
-
     data_loader = {}
     model_name = cfg['model_name']
     # iterate dataset['train'] and dataset['test']
     for k in dataset:
         # if we dont pass batch_size parameter, use default parameter in cfg
         # default parameter is defined in utils.py / process_control()
-        # print(f"````make_data_loader: {cfg['client'][model_name]['batch_size']}")
         _batch_size = cfg['client'][model_name]['batch_size'][k] if batch_size is None else batch_size[k]
-        # print(f'!@!@ batch_size: {_batch_size}')
-        # if cfg['train_mode'] == 'fedsgd':
-        #     _batch_size = int(cfg['client'][cfg['model_name']]['fraction'] * cfg['num_users']['data'])
         if cfg['train_mode'] == 'fedavg' and cfg['control']['num_nodes'] == 'max':
             _batch_size = 1
         # if we dont pass shuffle parameter, use default parameter in cfg
@@ -332,24 +268,6 @@ class PairInput(torch.nn.Module):
                     del input['item_attr']
                 if 'target_item_attr' in input:
                     del input['target_item_attr']
-        # elif self.data_mode == 'item':
-        #     input['item'] = input['item'].repeat(input['user'].size(0))
-        #     input['target_item'] = input['target_item'].repeat(input['target_user'].size(0))
-        #     if self.info == 1:
-        #         if 'item_attr' in input:
-        #             input['item_attr'] = input['item_attr'].view(1, -1).repeat(input['user'].size(0), 1)
-        #         if 'target_item_attr' in input:
-        #             input['target_item_attr'] = input['target_item_attr'].view(1, -1).repeat(
-        #                 input['target_user'].size(0), 1)
-        #     else:
-        #         if 'user_profile' in input:
-        #             del input['user_profile']
-        #         if 'target_user_profile' in input:
-        #             del input['target_user_profile']
-        #         if 'item_attr' in input:
-        #             del input['item_attr']
-        #         if 'target_item_attr' in input:
-        #             del input['target_item_attr']
         else:
             raise ValueError('Not valid data mode')
         return input
@@ -412,31 +330,6 @@ class FlatInput(torch.nn.Module):
                     del input['item_attr']
                 if 'target_item_attr' in input:
                     del input['target_item_attr']
-        # elif self.data_mode == 'item':
-        #     input['item'] = input['item'].repeat(input['user'].size(0))
-        #     input['target_item'] = input['target_item'].repeat(input['target_user'].size(0))
-        #     if self.info == 1:
-        #         if 'user_profile' in input:
-        #             input['user_profile'] = input['user_profile'].sum(dim=0, keepdim=True)
-        #             if input['user'].size(0) == 0 and input['target_user'].size(0) == 0:
-        #                 input['user_profile'] = input['user_profile'].repeat(input['user'].size(0), 1)
-        #         if 'item_attr' in input:
-        #             input['item_attr'] = input['item_attr'].view(1, -1)
-        #             if input['user'].size(0) == 0 and input['target_user'].size(0) == 0:
-        #                 input['item_attr'] = input['item_attr'].repeat(input['user'].size(0), 1)
-        #         if 'target_user_profile' in input:
-        #             del input['target_user_profile']
-        #         if 'target_item_attr' in input:
-        #             del input['target_item_attr']
-        #     else:
-        #         if 'user_profile' in input:
-        #             del input['user_profile']
-        #         if 'target_user_profile' in input:
-        #             del input['target_user_profile']
-        #         if 'item_attr' in input:
-        #             del input['item_attr']
-        #         if 'target_item_attr' in input:
-        #             del input['target_item_attr']
         else:
             raise ValueError('Not valid data mode')
         return input

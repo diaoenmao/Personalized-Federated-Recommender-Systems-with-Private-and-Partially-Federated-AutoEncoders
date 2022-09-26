@@ -26,83 +26,43 @@ from logger import make_logger
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
-# create parser
 parser = argparse.ArgumentParser(description='cfg')
-# use add_argument() to add the value in yaml to parser
 for k in cfg:
     exec('parser.add_argument(\'--{0}\', default=cfg[\'{0}\'], type=type(cfg[\'{0}\']))'.format(k))
-# add a new key (--control_name) in parser, value is None
 parser.add_argument('--control_name', default=None, type=str)
-# vars() returns the dict object of the key:value (typed in by the user) of parser.parse_args(). args now is dict 
 args = vars(parser.parse_args())
-# Updata the cfg using args in helper function => config.py / process_args(args)
 process_args(args)
 
 
 def main():
-    # utils.py / process_control()
-    # disassemble cfg['control']
-    # add the model parameter
     process_control()
-    # Get all integer from cfg['init_seen'] to cfg['init_seed'] + cfg['num_experiments'] - 1
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     for i in range(cfg['num_experiments']):
-        # (seens[i] + cfg['control_name']) as experiment label
         model_tag_list = [str(seeds[i]), cfg['control_name']]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
-        print('Experiment: {}'.format(cfg['model_tag']))
-
-        # Run experiment
         runExperiment()
     return
 
 def runExperiment():
 
-    # get seed and set the seed to CPU and GPU
-    # same seed gives same result
     cfg['seed'] = int(cfg['model_tag'].split('_')[0])
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
     
-    # data.py / fetch_dataset(ML100K)
-    # dataset is a dict, has 2 keys - 'train', 'test'
-    # dataset['train'] is the instance of corresponding dataset class
-    # 一整个 =》 分开
     dataset = fetch_dataset(cfg['data_name'])
-
-    # utils.py / process_dataset(dataset)
-    # add some key:value (size, num) to cfg
     process_dataset(dataset)
 
-    # resume
-
-    # if data_split is None:
     data_split, data_split_info = split_dataset(dataset, cfg['num_nodes'], cfg['data_split_mode'])
     data_split['test'] = copy.deepcopy(data_split['train'])
-    # data.py / make_data_loader(dataset)
-    # data_loader is a dict, has 2 keys - 'train', 'test'
-    # data_loader['train'] is the instance of DataLoader (class in PyTorch), which is iterable (可迭代对象)
-    # data_loader = make_data_loader(dataset)
 
-    # models / cfg['model_name'].py initializes the model, for example, models / ae.py / class AE
-    # .to(cfg["device"]) means copy the tensor to the specific GPU or CPU, and run the 
-    # calculation there.
-    # model is the instance of class AE (in models / ae.py). It contains the training process of 
-    #   Encoder and Decoder.
     federation = Federation(data_split_info)
     federation.create_local_model_and_local_optimizer()
     if cfg['compress_transmission'] == True:
         federation.record_items_for_each_user(dataset['train'])
 
     if cfg['target_mode'] == 'explicit':
-        # metric / class Metric
-        # return the instance of Metric, which contains function and initial information
-        #   we need for measuring the result
         metric = Metric({'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']})
     elif cfg['target_mode'] == 'implicit':
-        # metric / class Metric
-        # return the instance of Metric, which contains function and initial information
-        #   we need for measuring the result
         metric = Metric({'train': ['Loss', 'NDCG'], 'test': ['Loss', 'NDCG']})
     else:
         raise ValueError('Not valid target mode')
@@ -126,14 +86,9 @@ def runExperiment():
             logger = make_logger(logger_path)
     else:
         last_epoch = 1
-        # logger_path = concatenate_path([cur_file_path, '..', 'output', 'runs', 'train_{}'.format(cfg['model_tag'])])
-        # logger_path = concatenate_path(['output', 'runs', 'train_{}'.format(cfg['model_tag'])])
         logger_path = './output/runs/train_{}'.format(cfg['model_tag'])
         logger = make_logger(logger_path)
 
-    
-    # a = os.path.join()
-    # Train and Test the model for cfg['client'][cfg['model_name']]['num_epochs'] rounds
     for epoch in range(last_epoch, cfg['client'][cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
         
@@ -160,7 +115,6 @@ def runExperiment():
             epoch
         )
 
-        # info = test_batchnorm(dataset['test'], data_split['test'], data_split_info, federation, metric, logger, epoch)
         global_scheduler.step()
         if cfg['compress_transmission'] == True:
             logger.append_compress_activated_item_union_num(total_activated_item_union_num, epoch)
@@ -181,8 +135,7 @@ def runExperiment():
             'data_split': data_split, 
             'data_split_info': data_split_info
         }
-        # checkpoint_path = concatenate_path(['..', 'output', 'model', '{}_checkpoint.pt'.format(cfg['model_tag'])])
-        # best_path = concatenate_path(['..', 'output', 'model', '{}_best.pt'.format(cfg['model_tag'])])
+
         if cfg['update_best_model'] == 'global':
             checkpoint_path = './output/model/{}_checkpoint.pt'.format(cfg['model_tag'])
             best_path = './output/model/{}_best.pt'.format(cfg['model_tag'])
@@ -222,29 +175,6 @@ def train(
     global_optimizer_lr
 ):
 
-    """
-    train the model
-
-    Parameters:
-        data_loader - Object. Instance of DataLoader(data.py / make_data_loader(dataset)). 
-            It constains the processed data for training. data_loader['train'] is the instance of DataLoader (class in PyTorch), 
-            which is iterable (可迭代对象)
-        model - Object. Instance of class AE (in models / ae.py). 
-            It contains the training process of Encoder and Decoder.
-        optimizer - Object. Instance of class Optimizer, which is in Pytorch(utils.py / make_optimizer()). 
-            It contains the method to adjust learning rate.
-        metric - Object. Instance of class Metric (metric / class Metric).
-            It contains function and initial information we need for measuring the result
-        logger - Object. Instance of logger.py / class Logger.
-        epoch - Integer. The epoch number in for loop.
-
-    Returns:
-        None
-
-    Raises:
-        None
-    """
-
     local, node_idx = make_local(
         dataset, 
         data_split, 
@@ -270,7 +200,6 @@ def train(
             item_union_set=item_union_set
         )
 
-        
         if m % int((len(node_idx) * cfg['log_interval']) + 1) == 0:
             local_time = (time.time() - start_time) / (m + 1)
             epoch_finished_time = datetime.timedelta(seconds=local_time * (len(node_idx) - m - 1))
@@ -398,13 +327,9 @@ class Local:
                 output = model(input)
                 
                 if optimizer is not None:
-                    # Zero the gradient
                     optimizer.zero_grad()
-                    # Calculate the gradient of each parameter
                     output['loss'].backward()
-                    # Clips gradient norm of an iterable of parameters.
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
-                    # Perform a step of parameter through gradient descent Update
                     optimizer.step()
 
                 if cfg['experiment_size'] == 'large':
@@ -422,9 +347,7 @@ class Local:
         federation.store_local_model(cur_node_index, model)
         federation.store_local_optimizer_state_dict(cur_node_index, copy.deepcopy(optimizer_state_dict))
         
-        # b = next(model.parameters()).device
         local_parameters = model.state_dict()
-
         return local_parameters
 
 

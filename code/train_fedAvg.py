@@ -27,83 +27,41 @@ from logger import make_logger
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
-# create parser
 parser = argparse.ArgumentParser(description='cfg')
-# use add_argument() to add the value in yaml to parser
 for k in cfg:
     exec('parser.add_argument(\'--{0}\', default=cfg[\'{0}\'], type=type(cfg[\'{0}\']))'.format(k))
-# add a new key (--control_name) in parser, value is None
 parser.add_argument('--control_name', default=None, type=str)
-# vars() returns the dict object of the key:value (typed in by the user) of parser.parse_args(). args now is dict 
 args = vars(parser.parse_args())
-# Updata the cfg using args in helper function => config.py / process_args(args)
 process_args(args)
 
 
 def main():
-    # utils.py / process_control()
-    # disassemble cfg['control']
-    # add the model parameter
     process_control()
-    # Get all integer from cfg['init_seen'] to cfg['init_seed'] + cfg['num_experiments'] - 1
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     for i in range(cfg['num_experiments']):
-        # (seens[i] + cfg['control_name']) as experiment label
         model_tag_list = [str(seeds[i]), cfg['control_name']]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
-        print('Experiment: {}'.format(cfg['model_tag']))
 
-        # Run experiment
         runExperiment()
     return
 
 def runExperiment():
 
-    # get seed and set the seed to CPU and GPU
-    # same seed gives same result
     cfg['seed'] = int(cfg['model_tag'].split('_')[0])
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
     
-    # data.py / fetch_dataset(ML100K)
-    # dataset is a dict, has 2 keys - 'train', 'test'
-    # dataset['train'] is the instance of corresponding dataset class
-    # 一整个 =》 分开
     dataset = fetch_dataset(cfg['data_name'])
-
-    # utils.py / process_dataset(dataset)
-    # add some key:value (size, num) to cfg
     process_dataset(dataset)
 
-    # resume
-
-    # if data_split is None:
     data_split, data_split_info = split_dataset(dataset, cfg['num_nodes'], cfg['data_split_mode'])
-    # data_split['test'] = copy.deepcopy(data_split['train'])
 
-    # print('train_data_split', data_split, len(data_split['train'][0]))
-    # data.py / make_data_loader(dataset)
-    # data_loader is a dict, has 2 keys - 'train', 'test'
-    # data_loader['train'] is the instance of DataLoader (class in PyTorch), which is iterable (可迭代对象)
-    # data_loader = make_data_loader(dataset)
-
-    # models / cfg['model_name'].py initializes the model, for example, models / ae.py / class AE
-    # .to(cfg["device"]) means copy the tensor to the specific GPU or CPU, and run the 
-    # calculation there.
-    # model is the instance of class AE (in models / ae.py). It contains the training process of 
-    #   Encoder and Decoder.
     federation = Federation(data_split_info)
     federation.create_local_optimizer()
 
     if cfg['target_mode'] == 'explicit':
-        # metric / class Metric
-        # return the instance of Metric, which contains function and initial information
-        #   we need for measuring the result
         metric = Metric({'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']})
     elif cfg['target_mode'] == 'implicit':
-        # metric / class Metric
-        # return the instance of Metric, which contains function and initial information
-        #   we need for measuring the result
         metric = Metric({'train': ['Loss', 'NDCG'], 'test': ['Loss', 'NDCG']})
     else:
         raise ValueError('Not valid target mode')
@@ -112,7 +70,6 @@ def runExperiment():
     global_optimizer = make_optimizer(model, cfg['model_name'], 'client')
     global_scheduler = make_scheduler(global_optimizer, cfg['model_name'], 'client')
 
-    # Handle resuming the training situation
     if cfg['resume_mode'] == 1:
         result = resume(cfg['model_tag'])
         last_epoch = result['epoch']
@@ -128,12 +85,10 @@ def runExperiment():
         last_epoch = 1
         logger = make_logger('./output/runs/train_{}'.format(cfg['model_tag']))
     
-    # Train and Test the model for cfg['client'][cfg['model_name']]['num_epochs'] rounds
     for epoch in range(last_epoch, cfg['client'][cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
         
         global_optimizer_lr = global_optimizer.state_dict()['param_groups'][0]['lr']
-        # print(f'--epoch: {epoch}, global_optimizer_lr: {global_optimizer_lr}')
         node_idx = train(
             dataset['train'], 
             data_split['train'], 
@@ -185,7 +140,6 @@ def runExperiment():
     logger.safe(False)
     return
 
-
 def train(
     dataset, 
     data_split, 
@@ -197,29 +151,6 @@ def train(
     global_optimizer_lr
 ):
 
-    """
-    train the model
-
-    Parameters:
-        data_loader - Object. Instance of DataLoader(data.py / make_data_loader(dataset)). 
-            It constains the processed data for training. data_loader['train'] is the instance of DataLoader (class in PyTorch), 
-            which is iterable (可迭代对象)
-        model - Object. Instance of class AE (in models / ae.py). 
-            It contains the training process of Encoder and Decoder.
-        optimizer - Object. Instance of class Optimizer, which is in Pytorch(utils.py / make_optimizer()). 
-            It contains the method to adjust learning rate.
-        metric - Object. Instance of class Metric (metric / class Metric).
-            It contains function and initial information we need for measuring the result
-        logger - Object. Instance of logger.py / class Logger.
-        epoch - Integer. The epoch number in for loop.
-
-    Returns:
-        None
-
-    Raises:
-        None
-    """
-
     local, node_idx = make_local(
         dataset, 
         data_split, 
@@ -229,7 +160,6 @@ def train(
     )
    
     num_active_nodes = len(node_idx)
-    print('num_active_nodes', num_active_nodes)
 
     start_time = time.time()
     for m in range(num_active_nodes):    
@@ -268,8 +198,6 @@ def test(
     with torch.no_grad():
         cur_num_users = data_split_info[0]['num_users']
         cur_num_items = data_split_info[0]['num_items']
-        # model = eval('models.{}(encoder_num_users=cur_num_users, encoder_num_items=cur_num_items,' 
-        #     'decoder_num_users=cur_num_users, decoder_num_items=cur_num_items).to(cfg["device"])'.format(cfg['model_name']))
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
         model = federation.update_client_parameters_with_server_model_parameters(model)
         model.to(cfg['device'])
@@ -281,7 +209,6 @@ def test(
             batch_size = {
                 'test': min(cur_num_users, cfg['client'][cfg['model_name']]['batch_size']['test'])
             }
-            # print('batch_size', batch_size)
             data_loader = make_data_loader(
                 {'test': SplitDataset(dataset, data_split[m])}, 
                 batch_size
@@ -289,13 +216,11 @@ def test(
           
             for i, input in enumerate(data_loader):
                 input = collate(input)
-                # input_size = len(input)
                 input_size = len(input['target_{}'.format(cfg['data_mode'])])
                 if input_size == 0:
                     continue
                 input = to_device(input, cfg['device'])
                 output = model(input)
-                # print('input', input, output)
                 if cfg['experiment_size'] == 'large':
                     input = to_device(input, 'cpu')
                     output = to_device(output, 'cpu')
@@ -328,18 +253,12 @@ def make_local(dataset, data_split, data_split_info, federation, metric):
             'train': min(user_per_node_i, cfg['client'][cfg['model_name']]['batch_size']['train'])
         }
 
-        # print('federated_all_split', data_split[cur_node_index])
-    
         data_loader_m = make_data_loader(
             {'train': SplitDataset(dataset, data_split[cur_node_index])}, 
             batch_size
         )['train']
-
-        # cur_num_users = data_split_info[cur_node_index]['num_users']
-        # cur_num_items = data_split_info[cur_node_index]['num_items']
  
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-        # print('66666666666model', model)
         model = federation.update_client_parameters_with_server_model_parameters(model)
         local[m] = Local(data_loader_m, model, metric)
     return local, node_idx
@@ -365,34 +284,19 @@ class Local:
         local_optimizer_state_dict = to_device(local_optimizer_state_dict, cfg['device'])
         optimizer.load_state_dict(local_optimizer_state_dict) 
         optimizer.param_groups[0]['lr'] = global_optimizer_lr
-        # print(f"optimizer_state_dict_00: {optimizer.state_dict()}")
-        # print(f"model.state_dict", model.state_dict())
-        # return
         for local_epoch in range(1, cfg['client'][cfg['model_name']]['local_epoch'] + 1):
             for i, input in enumerate(self.data_loader):
 
-                # print('----', input.keys())
-                # print(f"federated_all_input: {input['target_user'][0]}")
-                # break
                 input = collate(input)
                 input_size = len(input['target_{}'.format(cfg['data_mode'])])
                 if input_size == 0:
                     continue
                 input = to_device(input, cfg['device'])
-                # print('--input', input)
                 output = model(input)
-                # print('--output', output)
-                # break
                 if optimizer is not None:
-                    # Zero the gradient
                     optimizer.zero_grad()
-                    # Calculate the gradient of each parameter
                     output['loss'].backward()
-                    # print(f"output_loss: {output['loss']}")
-                    # break
-                    # Clips gradient norm of an iterable of parameters.
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
-                    # Perform a step of parameter through gradient descent Update
                     optimizer.step()
 
                 if cfg['experiment_size'] == 'large':
@@ -403,14 +307,11 @@ class Local:
                 logger.append(evaluation, 'train', n=input_size)
         
         optimizer_state_dict = optimizer.state_dict()
-        # print(f"optimizer_state_dict: {optimizer_state_dict}")
         if cfg['experiment_size'] == 'large':
             model.to('cpu')
             optimizer_state_dict = to_device(optimizer_state_dict, 'cpu')
 
-        # federation.store_local_model(cur_node_index, model)
-        federation.store_local_optimizer_state_dict(cur_node_index, copy.deepcopy(optimizer_state_dict))
-        
+        federation.store_local_optimizer_state_dict(cur_node_index, copy.deepcopy(optimizer_state_dict)) 
         local_parameters = model.state_dict()
         
         return local_parameters

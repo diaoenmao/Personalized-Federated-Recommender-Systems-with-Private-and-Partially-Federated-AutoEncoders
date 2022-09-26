@@ -8,7 +8,6 @@ from utils import recur
 
 
 def RMSE(output, target):
-
     """
     RMSE between output from decoder and the target
 
@@ -22,17 +21,9 @@ def RMSE(output, target):
     Raises:
         None
     """
-
     with torch.no_grad():
         rmse = F.mse_loss(output, target).sqrt().item()
-    
-    # print('rmse', rmse, type(rmse))
-    # if np.isnan(rmse):
-    #     print('66666')
-    #     print(output)
-    #     print(target)
-    # if not isinstance(rmse, int):
-    #     print('zz', output, target)
+
     return rmse
 
 
@@ -109,7 +100,6 @@ def NDCG(output, target, user, item, topk=10):
 
 
 class Metric(object):
-
     """
     Initialize metric for measuring the result.
 
@@ -122,7 +112,6 @@ class Metric(object):
     Raises:
         None
     """
-
     def __init__(self, metric_name):
         # assign metric_name to self.metric_name
         self.metric_name = self.make_metric_name(metric_name)
@@ -146,7 +135,7 @@ class Metric(object):
         return metric_name
 
     def make_pivot(self):
-        if cfg['data_name'] in ['ML100K', 'ML1M', 'ML10M', 'ML20M', 'Douban', 'Amazon', 'Anime', 'Netflix']:
+        if cfg['data_name'] in ['ML1M', 'Anime']:
             if cfg['target_mode'] == 'explicit':
                 pivot = float('inf')
                 pivot_direction = 'down'

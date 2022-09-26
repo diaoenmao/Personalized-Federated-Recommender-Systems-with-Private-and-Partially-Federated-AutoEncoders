@@ -14,7 +14,6 @@ from metrics import Metric
 from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
 from logger import make_logger
 
-# torch.manual_seed(1)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
 # create parser
@@ -64,11 +63,6 @@ def runExperiment():
     # utils.py / process_dataset(dataset)
     # add some key:value (size, num) to cfg
     process_dataset(dataset)
-    print(f'-----joint_dataset: {dataset}')
-    # data.py / make_data_loader(dataset)
-    # data_loader is a dict, has 2 keys - 'train', 'test'
-    # data_loader['train'] is the instance of DataLoader (class in PyTorch), which is iterable (可迭代对象)
-    # data_loader = make_data_loader(dataset)
 
     data_split, data_split_info = split_dataset(dataset, 1, cfg['data_split_mode'])
     # models / cfg['model_name'].py initializes the model, for example, models / ae.py / class AE
@@ -77,8 +71,6 @@ def runExperiment():
     # model is the instance of class AE (in models / ae.py). It contains the training process of 
     #   Encoder and Decoder.
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    print('66666666666model', model)
-    print("model_name", cfg['model_name'])
 
     if cfg['model_name'] != 'base':
         # utils.py / make_optimizer()
@@ -119,14 +111,8 @@ def runExperiment():
         last_epoch = 1
         logger = make_logger('./output/runs/train_{}'.format(cfg['model_tag']))
 
-    # Use multiple GPU to accelarate training
-    # if cfg['world_size'] > 1:
-    #     model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
-
     # Train and Test the model for cfg['client'][cfg['model_name']]['num_epochs'] rounds
     for epoch in range(last_epoch, cfg['client'][cfg['model_name']]['num_epochs'] + 1):
-        # print(f"--epoch: {epoch}, global_optimizer_lr: {optimizer.state_dict()['param_groups'][0]['lr']}")
-        # print(f"!!!!joint_split: {data_split['train'][0]}")
         data_loader_train = make_data_loader(
             dataset={'train': SplitDataset(dataset['train'], data_split['train'][0])}, 
             batch_size={
@@ -142,9 +128,6 @@ def runExperiment():
         )['test']
         train(data_loader_train, model, optimizer, metric, logger, epoch)
         test(data_loader_test, model, metric, logger, epoch)
-
-        # train(data_loader['train'], model, optimizer, metric, logger, epoch)
-        # test(data_loader['test'], model, metric, logger, epoch)
         
         if scheduler is not None:
             scheduler.step()
@@ -163,72 +146,34 @@ def runExperiment():
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
-    a = model.decoder.state_dict()
     return
 
 
 def train(data_loader, model, optimizer, metric, logger, epoch):
 
-    """
-    train the model
-
-    Parameters:
-        data_loader - Object. Instance of DataLoader(data.py / make_data_loader(dataset)). 
-            It constains the processed data for training. data_loader['train'] is the instance of DataLoader (class in PyTorch), 
-            which is iterable (可迭代对象)
-        model - Object. Instance of class AE (in models / ae.py). 
-            It contains the training process of Encoder and Decoder.
-        optimizer - Object. Instance of class Optimizer, which is in Pytorch(utils.py / make_optimizer()). 
-            It contains the method to adjust learning rate.
-        metric - Object. Instance of class Metric (metric / class Metric).
-            It contains function and initial information we need for measuring the result
-        logger - Object. Instance of logger.py / class Logger.
-        epoch - Integer. The epoch number in for loop.
-
-    Returns:
-        None
-
-    Raises:
-        None
-    """
-
-    # print(f"optimizer_state_dict_00: {optimizer.state_dict()}")
-    # return
     logger.safe(True)
     # Set the model in training mode
     model.train(True)
     start_time = time.time()
     # Iterate data_loader
-    # print('zheli')
-    # print(f"model.state_dict", model.state_dict())
     for i, input in enumerate(data_loader):
         # utils.py / collate(input)
         # input is the batch_size data that has been processed by input_collate(batch)
         # input_collate(batch) is in data.py / input_collate(batch)
-        # print(f"joint_input: {input['target_user'][0]}")
-        # break
         input = collate(input)
-        # print(f"joint_input: {input['rating'][0]}")
-        # how many datapoints are calculated in current round
         input_size = len(input['target_{}'.format(cfg['data_mode'])])
         if input_size == 0:
             continue
         input = to_device(input, cfg['device'])
-        # print('--input', input)
         # put the input in model => forward() => train Encoder and Decoder and get loss
         output = model(input)
-        # print('--output', output)
-        # output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
-        # break
+
         # update parameters of model
         if optimizer is not None:
             # Zero the gradient
             optimizer.zero_grad()
             # Calculate the gradient of each parameter
             output['loss'].backward()
-            
-            # print(f"output_loss: {output['loss']}")
-            # break
             # Clips gradient norm of an iterable of parameters.
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
             # Perform a step of parameter through gradient descent Update
@@ -252,7 +197,6 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
     
-    # print(f"optimizer_state_dict: {optimizer.state_dict()}")
     logger.safe(False)
     return
 
@@ -268,7 +212,6 @@ def test(data_loader, model, metric, logger, epoch):
                 continue
             input = to_device(input, cfg['device'])
             output = model(input)
-            # output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(metric.metric_name['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}

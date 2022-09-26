@@ -9,22 +9,10 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from collections import Counter
-# import sys
-# sys.path.append("../utils")
-# from utils import makedir_exist_ok
 from utils import makedir_exist_ok
 
 IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif']
 
-# def makedir_exist_ok(path):
-#     try:
-#         os.makedirs(path)
-#     except OSError as e:
-#         if e.errno == errno.EEXIST:
-#             pass
-#         else:
-#             raise
-#     return
 
 def change_to_absolute_path(path):
     return os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', path)
@@ -43,14 +31,6 @@ def pil_loader(path):
     with open(path, 'rb') as f:
         img = Image.open(f)
         return img.convert('RGB')
-
-
-def accimage_loader(path):
-    import accimage
-    try:
-        return accimage.Image(path)
-    except IOError:
-        return pil_loader(path)
 
 
 def default_loader(path):
@@ -211,7 +191,6 @@ def make_flat_index(root, given=None):
 
 
 class Compose(object):
-
     """
     class for wrapping all the operation of the input data
 
@@ -225,7 +204,6 @@ class Compose(object):
     Raises:
         None
     """
-
     def __init__(self, transforms):
         self.transforms = transforms
 

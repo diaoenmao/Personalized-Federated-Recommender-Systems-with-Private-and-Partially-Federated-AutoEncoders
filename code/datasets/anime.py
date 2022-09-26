@@ -12,9 +12,6 @@ from config import cfg
 class Anime(Dataset): 
     data_name = 'Anime'
     filename = 'anime_archive.zip'  # https://www.kaggle.com/datasets/fengzhujoey/douban-datasetratingreviewside-information
-    # genre = ['book', 'movie', 'music']
-    # genre = ['book']
-    # genre = ['movie']
 
     def __init__(self, root, split, data_mode, target_mode, transform=None):
         self.sliced_user_count = 6000
@@ -27,28 +24,12 @@ class Anime(Dataset):
             self.process()
         self.data, self.target = load(os.path.join(self.processed_folder, self.target_mode, '{}.pt'.format(self.split)),
                                       mode='pickle')
-        # self.item_attr = {}
-        # user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
-        # self.user_profile = {'data': user_profile, 'target': user_profile}
+
         self.user_profile = {}
-        # self.item_attr = {}
-        # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
-        # self.item_attr = {'data': item_attr, 'target': item_attr}
         if self.data_mode == 'user':
             pass
-        # elif self.data_mode == 'item':
-        #     data_coo = self.data.tocoo()
-        #     target_coo = self.target.tocoo()
-        #     self.data = csr_matrix((data_coo.data, (data_coo.col, data_coo.row)),
-        #                            shape=(self.data.shape[1], self.data.shape[0]))
-        #     self.target = csr_matrix((target_coo.data, (target_coo.col, target_coo.row)),
-        #                              shape=(self.target.shape[1], self.target.shape[0]))
         else:
             raise ValueError('Not valid data mode')
-        # user_profile = load(os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
-        # self.user_profile = {'data': user_profile, 'target': user_profile}
-        # item_attr = load(os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
-        # self.item_attr = {'data': item_attr, 'target': item_attr}
 
     def __getitem__(self, index):
         data = self.data[index].tocoo()
@@ -64,10 +45,6 @@ class Anime(Dataset):
                 input['user_profile'] = torch.tensor(self.user_profile['data'][index])
             if 'target' in self.user_profile:
                 input['target_user_profile'] = torch.tensor(self.user_profile['target'][index])
-            # if 'data' in self.item_attr:
-            #     input['item_attr'] = torch.tensor(self.item_attr['data'][data.col])
-            # if 'target' in self.item_attr:
-            #     input['target_item_attr'] = torch.tensor(self.item_attr['target'][target.col])
         elif self.data_mode == 'item':
             input = {'user': torch.tensor(data.col, dtype=torch.long),
                      'item': torch.tensor(np.array([index]), dtype=torch.long),
@@ -129,7 +106,6 @@ class Anime(Dataset):
     def process(self):
         if not check_exists(self.raw_folder):
             self.download()
-        print('-----', self.raw_folder)
         extract_file(os.path.join(self.raw_folder, self.filename))
         train_set, test_set = self.make_explicit_data()
         save(train_set, os.path.join(self.processed_folder, 'explicit', 'train.pt'), mode='pickle')
@@ -137,9 +113,6 @@ class Anime(Dataset):
         train_set, test_set = self.make_implicit_data()
         save(train_set, os.path.join(self.processed_folder, 'implicit', 'train.pt'), mode='pickle')
         save(test_set, os.path.join(self.processed_folder, 'implicit', 'test.pt'), mode='pickle')
-        # user_profile, item_attr = self.make_info()
-        # save(user_profile, os.path.join(self.processed_folder, 'user_profile.pt'), mode='pickle')
-        # save(item_attr, os.path.join(self.processed_folder, 'item_attr.pt'), mode='pickle')
         return
 
     def download(self):
@@ -155,29 +128,18 @@ class Anime(Dataset):
         user = []
         item = []
         rating = []
-        # for i in range(len(self.genre)):
+
         data_i = pd.read_csv(os.path.join(self.raw_folder, 'rating.csv'), delimiter=',')
-        # print(f'data_i: {data_i}')
-        # print(f'ceshi: {data_i[0][0]}, {len(data_i[0])}')
-        print('fasdfa', dir(data_i))
-        ceshi = data_i.iloc[:, 2].astype(np.float32)
-        print(f'ceshi: {len(ceshi)}', data_i.iloc[0, 2] == -1 )
-
         data_i = data_i.drop(data_i[data_i['rating'] == -1].index)
-        ceshi_2 = data_i.iloc[:, 2].astype(np.float32)
-        print(f'ceshi_2: {len(ceshi_2)}')
 
-        user_i = data_i.iloc[:, 0].to_numpy()
-        # print(f'user_id: {user_i}')
-        
+        user_i = data_i.iloc[:, 0].to_numpy()       
         item_i = data_i.iloc[:, 1].to_numpy()
         item_id_i, item_inv_i = np.unique(item_i, return_inverse=True)
         item_id_map_i = {item_id_i[i]: i for i in range(len(item_id_i))}
         item_i = np.array([item_id_map_i[i] for i in item_id_i], dtype=np.int64)[item_inv_i].reshape(item_i.shape)
         rating_i = data_i.iloc[:, 2].astype(np.float32)
         user.append(user_i)
-        # if i > 0:
-        #     item_i = item_i + len(item[i - 1])
+
         item.append(item_i)
         rating.append(rating_i)
         user = np.concatenate(user, axis=0)
@@ -205,29 +167,21 @@ class Anime(Dataset):
         user = user[dense_mask]
         item = item[dense_mask]
         rating = rating[dense_mask]
-        print('user, item, rating', user, item, rating, len(rating))
 
         user_id, user_inv = np.unique(user, return_inverse=True)
         item_id, item_inv = np.unique(item, return_inverse=True)
-        print(f'user_id: {user_id}')
         M, N = len(user_id), len(item_id)
-        print('unique user / item', M, N)
 
-        # sliced_user = user_id[:6000]
-        # sliced_item = item_id[:3700]
         sliced_user = user_id[:self.sliced_user_count]
         sliced_item = item_id[:]
-        print(f'sliced_user: {sliced_user}')
         sliced_mask = np.logical_and(np.isin(user, sliced_user), np.isin(item, sliced_item))
 
         user = user[sliced_mask]
-        print(f'sliced_user: {user}')
         item = item[sliced_mask]
         rating = rating[sliced_mask]
         user_id, user_inv = np.unique(user, return_inverse=True)
         item_id, item_inv = np.unique(item, return_inverse=True)
         M, N = len(user_id), len(item_id)
-        print('sliced unique user / item', M, N, len(rating))
         user_id_map = {user_id[i]: i for i in range(len(user_id))}
         item_id_map = {item_id[i]: i for i in range(len(item_id))}
         user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(user.shape)
@@ -249,56 +203,21 @@ class Anime(Dataset):
         user = []
         item = []
         rating = []
-        # for i in range(len(self.genre)):
         data_i = pd.read_csv(os.path.join(self.raw_folder, 'rating.csv'), delimiter=',')
-        # print(f'data_i: {data_i}')
-        # print(f'ceshi: {data_i[0][0]}, {len(data_i[0])}')
-        print('fasdfa', dir(data_i))
-        ceshi = data_i.iloc[:, 2].astype(np.float32)
-        print(f'ceshi: {len(ceshi)}', data_i.iloc[0, 2] == -1 )
-
         data_i = data_i.drop(data_i[data_i['rating'] == -1].index)
-        ceshi_2 = data_i.iloc[:, 2].astype(np.float32)
-        print(f'ceshi_2: {len(ceshi_2)}')
-
-        user_i = data_i.iloc[:, 0].to_numpy()
-        # print(f'user_id: {user_i}')
-        
+        user_i = data_i.iloc[:, 0].to_numpy()      
         item_i = data_i.iloc[:, 1].to_numpy()
         item_id_i, item_inv_i = np.unique(item_i, return_inverse=True)
         item_id_map_i = {item_id_i[i]: i for i in range(len(item_id_i))}
         item_i = np.array([item_id_map_i[i] for i in item_id_i], dtype=np.int64)[item_inv_i].reshape(item_i.shape)
         rating_i = data_i.iloc[:, 2].astype(np.float32)
         user.append(user_i)
-        # if i > 0:
-        #     item_i = item_i + len(item[i - 1])
+
         item.append(item_i)
         rating.append(rating_i)
         user = np.concatenate(user, axis=0)
         item = np.concatenate(item, axis=0)
         rating = np.concatenate(rating, axis=0)
-
-
-        # user = []
-        # item = []
-        # rating = []
-        # # for i in range(len(self.genre)):
-        # data_i = pd.read_csv(os.path.join(self.raw_folder, 'anime_archive',
-        #                                     'rating.csv'), delimiter='\t')
-        # user_i = data_i.iloc[:, 0].to_numpy()
-        # item_i = data_i.iloc[:, 1].to_numpy()
-        # item_id_i, item_inv_i = np.unique(item_i, return_inverse=True)
-        # item_id_map_i = {item_id_i[i]: i for i in range(len(item_id_i))}
-        # item_i = np.array([item_id_map_i[i] for i in item_id_i], dtype=np.int64)[item_inv_i].reshape(item_i.shape)
-        # rating_i = data_i.iloc[:, 2].astype(np.float32)
-        # user.append(user_i)
-        # if i > 0:
-        #     item_i = item_i + len(item[i - 1])
-        # item.append(item_i)
-        # rating.append(rating_i)
-        # user = np.concatenate(user, axis=0)
-        # item = np.concatenate(item, axis=0)
-        # rating = np.concatenate(rating, axis=0)
 
         user_id, user_inv = np.unique(user, return_inverse=True)
         item_id, item_inv = np.unique(item, return_inverse=True)
@@ -321,30 +240,21 @@ class Anime(Dataset):
         user = user[dense_mask]
         item = item[dense_mask]
         rating = rating[dense_mask]
-        print('user, item, rating', user, item, rating, len(rating))
 
         user_id, user_inv = np.unique(user, return_inverse=True)
         item_id, item_inv = np.unique(item, return_inverse=True)
-        print(f'user_id: {user_id}')
         M, N = len(user_id), len(item_id)
-        print('unique user / item', M, N)
 
-        # sliced_user = user_id[:6000]
-        # sliced_item = item_id[:3700]
         sliced_user = user_id[:self.sliced_user_count]
         sliced_item = item_id[:]
-        print(f'sliced_user: {sliced_user}')
         sliced_mask = np.logical_and(np.isin(user, sliced_user), np.isin(item, sliced_item))
 
         user = user[sliced_mask]
-        print(f'sliced_user: {user}')
         item = item[sliced_mask]
         rating = rating[sliced_mask]
-        print('!!rating', rating, len(rating), np.sum(rating < 7), np.sum(rating < 8), np.sum(rating < 9), np.sum(rating >= 7))
         user_id, user_inv = np.unique(user, return_inverse=True)
         item_id, item_inv = np.unique(item, return_inverse=True)
         M, N = len(user_id), len(item_id)
-        print('sliced unique user / item', M, N)
         user_id_map = {user_id[i]: i for i in range(len(user_id))}
         item_id_map = {item_id[i]: i for i in range(len(item_id))}
         user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(user.shape)
@@ -364,108 +274,3 @@ class Anime(Dataset):
         test_data = train_data
         test_target = csr_matrix((test_rating, (test_user, test_item)), shape=(M, N))
         return (train_data, train_target), (test_data, test_target)
-
-    def make_info(self):
-        user_info = pd.read_csv(os.path.join(self.raw_folder, 'douban_dataset(text information)', 'users_cleaned.txt'),
-                                delimiter='\t')
-        user_id_info = user_info.iloc[:, -1].to_numpy()
-        living_place = user_info.iloc[:, 1].to_numpy()
-
-        user = []
-        item = []
-        rating = []
-        for i in range(len(self.genre)):
-            data_i = pd.read_csv(os.path.join(self.raw_folder, 'douban_dataset(text information)',
-                                              '{}reviews_cleaned.txt'.format(self.genre[i])), delimiter='\t')
-            user_i = data_i.iloc[:, 0].to_numpy()
-            item_i = data_i.iloc[:, 1].to_numpy()
-            item_id_i, item_inv_i = np.unique(item_i, return_inverse=True)
-            item_id_map_i = {item_id_i[i]: i for i in range(len(item_id_i))}
-            item_i = np.array([item_id_map_i[i] for i in item_id_i], dtype=np.int64)[item_inv_i].reshape(item_i.shape)
-            rating_i = data_i.iloc[:, 2].astype(np.float32)
-            user.append(user_i)
-            if i > 0:
-                item_i = item_i + len(item[i - 1])
-            item.append(item_i)
-            rating.append(rating_i)
-        num_items_genre = [len(x) for x in item]
-        user = np.concatenate(user, axis=0)
-        item = np.concatenate(item, axis=0)
-        rating = np.concatenate(rating, axis=0)
-
-        user_id, user_inv = np.unique(user, return_inverse=True)
-        item_id, item_inv = np.unique(item, return_inverse=True)
-        M, N = len(user_id), len(item_id)
-        user_id_map = {user_id[i]: i for i in range(len(user_id))}
-        item_id_map = {item_id[i]: i for i in range(len(item_id))}
-        user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(user.shape)
-        item = np.array([item_id_map[i] for i in item_id], dtype=np.int64)[item_inv].reshape(item.shape)
-
-        user_id_info_idx = np.intersect1d(user_id_info, user_id, return_indices=True)[1]
-        user_id_info = user_id_info[user_id_info_idx]
-        living_place = living_place[user_id_info_idx]
-        user_id_info = np.array([user_id_map[i] for i in user_id_info])
-
-        data = csr_matrix((rating, (user, item)), shape=(M, N))
-        nonzero_user, nonzero_item = data.nonzero()
-        _, count_nonzero_user = np.unique(nonzero_user, return_counts=True)
-        _, count_nonzero_item = np.unique(nonzero_item, return_counts=True)
-        # dense_user_mask = count_nonzero_user >= 20
-        dense_user_mask = count_nonzero_user >= 20
-        dense_item_mask = count_nonzero_item >= 20
-        dense_user_id = np.arange(len(user_id))[dense_user_mask]
-        dense_item_id = np.arange(len(item_id))[dense_item_mask]
-        dense_mask = np.logical_and(np.isin(user, dense_user_id), np.isin(item, dense_item_id))
-        user = user[dense_mask]
-        item = item[dense_mask]
-
-        user_id, user_inv = np.unique(user, return_inverse=True)
-        item_id, item_inv = np.unique(item, return_inverse=True)
-        M, N = len(user_id), len(item_id)
-        user_id_map = {user_id[i]: i for i in range(len(user_id))}
-        item_id_map = {item_id[i]: i for i in range(len(item_id))}
-        user = np.array([user_id_map[i] for i in user_id], dtype=np.int64)[user_inv].reshape(user.shape)
-        item = np.array([item_id_map[i] for i in item_id], dtype=np.int64)[item_inv].reshape(item.shape)
-
-        user_id_info_idx = np.intersect1d(user_id_info, user_id, return_indices=True)[1]
-        living_place = living_place[user_id_info_idx]
-
-        provinces = ['北京', '天津', '河北', '山西', '内蒙古', '辽宁', '吉林', '黑龙江', '上海', '江苏', '浙江', '安徽',
-                     '福建', '江西', '山东', '河南', '湖北', '湖南', '广东', '广西', '海南', '重庆', '四川', '贵州', '云南',
-                     '西藏', '陕西', '甘肃', '青海', '宁夏', '新疆', '台湾', '香港', '澳门']
-        code_idx = -1
-        visited_provinces = {}
-        for i in range(len(living_place)):
-            check_in = [p in str(living_place[i]) for p in provinces]
-            if any(check_in):
-                visiting_p = provinces[np.where(check_in)[0].item()]
-                if visiting_p not in visited_provinces:
-                    code_idx += 1
-                    visited_provinces[visiting_p] = code_idx
-                code_idx_i = visited_provinces[visiting_p]
-                living_place[i] = code_idx_i
-            else:
-                living_place[i] = -1
-        living_place = np.array(living_place)
-        living_place[living_place == -1] = code_idx + 1
-        living_place_id, living_place_inv = np.unique(living_place, return_inverse=True)
-        user_profile = np.zeros((len(user_id), len(living_place_id)), dtype=np.float32)
-        for i in range(len(living_place_id)):
-            mask_i = living_place == living_place_id[i]
-            user_profile[mask_i, i] += 1
-
-        num_items_genre_ = []
-        pivot = 0
-        for i in range(len(num_items_genre)):
-            num_items_i = int(dense_mask[pivot:pivot + num_items_genre[i]].astype(np.float32).sum())
-            pivot = pivot + num_items_genre[i]
-            num_items_genre_.append(num_items_i)
-        num_items_genre = num_items_genre_
-        item_id, item_inv = np.unique(item, return_inverse=True)
-        item_attr = np.zeros((len(item_id), len(self.genre)), dtype=np.float32)
-        pivot = 0
-        for i in range(len(num_items_genre)):
-            item_inv_i = np.intersect1d(item_id, item[pivot:pivot + num_items_genre[i]], return_indices=True)[1]
-            item_attr[item_inv_i, i] += 1
-            pivot = pivot + num_items_genre[i]
-        return user_profile, item_attr

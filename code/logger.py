@@ -48,7 +48,6 @@ class Logger:
 
 
     def append(self, result, tag, n=1, mean=True, is_fine_tune=False):
-
         """
         Append evaluation and average the evaluation dividing by total count
 
@@ -62,7 +61,6 @@ class Logger:
         Raises:
             None
         """
-
         for k in result:
             name = '{}/{}'.format(tag, k)
             self.tracker[name] = result[k]
@@ -93,15 +91,12 @@ class Logger:
                         if name not in self.mean_for_each_node:
                             self.mean_for_each_node[name] = defaultdict(int)
                         if isinstance(result[k], Number):
-                            self.mean_for_each_node[name][node_idx] = result[k]
-                            # self.counter[name] += n
-                            # self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]    
+                            self.mean_for_each_node[name][node_idx] = result[k]  
                     else:
                         raise ValueError('Not valid update_best_model way')
         return
 
     def write(self, tag, metric_names):
-
         """
         return the train/test log and evaluation result
 
@@ -115,7 +110,6 @@ class Logger:
         Raises:
             None
         """
-
         names = ['{}/{}'.format(tag, k) for k in metric_names]
         a = tag
         b = metric_names
@@ -151,8 +145,6 @@ class Logger:
 
 
 def make_logger(path):
-    # current_time = datetime.datetime.now().strftime('%b%d_%H-%M')
-    # logger_path = '{}_{}'.format(path, current_time)
     logger_path = path
     makedir_exist_ok(logger_path)
     logger = Logger(logger_path)

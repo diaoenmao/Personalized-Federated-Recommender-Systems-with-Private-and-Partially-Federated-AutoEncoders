@@ -1,12 +1,16 @@
 import argparse
 import os
+import copy
 import torch
 import torch.backends.cudnn as cudnn
 import models
+import numpy as np
+import collections
+
 from config import cfg, process_args
-from data import fetch_dataset, make_data_loader
+from data import fetch_dataset, make_data_loader, split_dataset, SplitDataset
 from metrics import Metric
-from utils import save, to_device, process_control, process_dataset, resume, collate
+from utils import save, to_device, process_control, process_dataset, resume, collate, make_optimizer, make_scheduler, fix_parameters, init_final_layer
 from logger import make_logger
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -36,7 +40,7 @@ def runExperiment():
     torch.cuda.manual_seed(cfg['seed'])
     dataset = fetch_dataset(cfg['data_name'])
     process_dataset(dataset)
-    data_loader = make_data_loader(dataset)
+
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     if cfg['target_mode'] == 'explicit':
         metric = Metric({'train': ['Loss', 'RMSE'], 'test': ['Loss', 'RMSE']})
@@ -44,38 +48,50 @@ def runExperiment():
         metric = Metric({'train': ['Loss', 'NDCG'], 'test': ['Loss', 'NDCG']})
     else:
         raise ValueError('Not valid target mode')
+    
     result = resume(cfg['model_tag'], load_tag='best')
+    global_model_state_dict = result['model_state_dict']
     last_epoch = result['epoch']
-    model.load_state_dict(result['model_state_dict'])
+    data_split = result['data_split']
+    data_split['test'] = copy.deepcopy(data_split['train'])
+    data_split_info = result['data_split_info']
+    model.load_state_dict(global_model_state_dict)
     test_logger = make_logger('./output/runs/test_{}'.format(cfg['model_tag']))
-    test(data_loader['test'], model, metric, test_logger, last_epoch)
+    test(dataset['test'], data_split['test'], data_split_info, model, metric, test_logger, last_epoch)
+
     result = resume(cfg['model_tag'], load_tag='checkpoint')
     train_logger = result['logger'] if 'logger' in result else None
+    
     result = {'cfg': cfg, 'epoch': last_epoch, 'logger': {'train': train_logger, 'test': test_logger}}
     save(result, './output/result/{}.pt'.format(cfg['model_tag']))
     return
 
-
-def test(data_loader, model, metric, logger, epoch):
+def test(dataset, data_split, data_split_info, model, metric, logger, epoch):
     logger.safe(True)
     with torch.no_grad():
         model.train(False)
-        for i, input in enumerate(data_loader):
-            input = collate(input)
-            input_size = len(input['target_{}'.format(cfg['data_mode'])])
-            if input_size == 0:
-                continue
-            input = to_device(input, cfg['device'])
-            output = model(input)
-            # output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
-            evaluation = metric.evaluate(metric.metric_name['test'], input, output)
-            logger.append(evaluation, 'test', input_size)
-        info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+        for m in range(len(data_split_info)):
+            cur_num_users = data_split_info[m]['num_users']
+            batch_size = {'test': min(cur_num_users, cfg['client'][cfg['model_name']]['batch_size']['test'])}
+            data_loader = make_data_loader({'test': SplitDataset(dataset, data_split[m])}, batch_size)['test']
+          
+            for i, original_input in enumerate(data_loader):
+                input = copy.deepcopy(original_input)
+                input = collate(input)
+                input_size = len(input['target_{}'.format(cfg['data_mode'])])
+                if input_size == 0:
+                    continue
+                input = to_device(input, cfg['device'])
+                output = model(input)
+                evaluation = metric.evaluate(metric.metric_name['test'], input, output)
+                logger.append(evaluation, 'test', input_size)
+        info = {'info': ['Model: {}'.format(cfg['model_tag']),
+                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
-        print(logger.write('test', metric.metric_name['test']))
+        info = logger.write('test', metric.metric_name['test'])
+        print(info)
     logger.safe(False)
     return
-
 
 if __name__ == "__main__":
     main()

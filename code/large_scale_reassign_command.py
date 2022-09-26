@@ -16,7 +16,7 @@ def main():
     # #     print('ff', ff)
     # # return
     run = ['train', 'test']
-    file = ['privacy_federated_all', 'privacy_federated_decoder', 'privacy_joint']
+    file = ['fedAvg', 'personalFR', 'joint']
     
     train_file_lists = [f'{run[0]}_{file[i]}' for i in range(len(file))]
     test_file_lists = [f'{run[1]}_{file[i]}' for i in range(len(file))]
