@@ -1,5 +1,3 @@
-
-
 # Personalized Federated Recommender Systems with Private and Partially Federated AutoEncoders
 
 This is an implementation of Personalized Federated Recommender Systems with Private and Partially Federated AutoEncoders
@@ -8,21 +6,23 @@ This is an implementation of Personalized Federated Recommender Systems with Pri
 
 
 
-### Requirements
+## Requirements
 
 - see requirements.txt
 
+  
 
-
-### Instruction
+## Instruction
 
 - Global hyperparameters are configured in config.yml
+
 - Hyperparameters can be found at process_control() in utils.py
+
 - fed.py contrains aggregation and separation of clients
 
+  
 
-
-### Examples
+## Examples
 
 - Train ML1M dataset (IID) with AE model, Joint, 1 client, explicit feedback, Compress Transmission(False)
 
@@ -44,9 +44,7 @@ This is an implementation of Personalized Federated Recommender Systems with Pri
 
 
 
-
-
-### Results
+## Results
 
 ![table1](/asset/table1.png)
 
@@ -60,7 +58,7 @@ This is an implementation of Personalized Federated Recommender Systems with Pri
 
 
 
-### Acknowledgement
+## Acknowledgement
 
 *Qi Le*
 
