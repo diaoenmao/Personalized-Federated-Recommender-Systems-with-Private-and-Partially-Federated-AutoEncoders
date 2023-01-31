@@ -27,7 +27,7 @@ This is an implementation of [Personalized Federated Recommender Systems with Pr
 - Train ML1M dataset (IID) with AE model, Joint, 1 client, explicit feedback, Compress Transmission(False)
 
   ```ruby
-  python train_joint.py --control_name ML1M_user_im_joint_NA_ae_iid_g_1_0_l
+  python train_joint.py --control_name ML1M_user_im_joint_NA_ae_iid_1_0_l
   ```
 
 - Train Anime dataset (IID) with AE model, FedAvg, 100 clients, explicit feedback, Compress Transmission(False)
