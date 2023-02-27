@@ -1,6 +1,6 @@
 # Personalized Federated Recommender Systems with Private and Partially Federated AutoEncoders
 
-This is an implementation of [Personalized Federated Recommender Systems with Private and Partially Federated AutoEncoders](https://arxiv.org/abs/2212.08779)
+[Asilomar 2022] This is an implementation of [Personalized Federated Recommender Systems with Private and Partially Federated AutoEncoders](https://arxiv.org/abs/2212.08779)
 
 ![PersonalFR](/asset/PersonalFR.png)
 
